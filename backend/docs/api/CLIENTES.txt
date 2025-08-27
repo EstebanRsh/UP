@@ -1,0 +1,172 @@
+API — CLIENTES
+==============
+
+Resumen
+-------
+Gestión de clientes del ISP: creación, búsqueda (POST /clientes/search), listado admin, paginado por cursor, detalle, actualización e inactivación (baja lógica).
+Todos los endpoints (salvo /clientes/hello) requieren Authorization: Bearer <token> de usuario con rol GERENTE u OPERADOR.
+
+Modelo de datos (simplificado)
+------------------------------
+- id: int (PK)
+- nro_cliente: string(6) — generado secuencialmente con padding
+- nombre: string
+- apellido: string
+- documento: string(11) — dígitos
+- telefono: string? 
+- email: string?
+- direccion: string
+- estado: enum('activo', 'inactivo') — default 'activo'
+- creado_en: datetime (UTC)
+
+Seguridad
+---------
+Header obligatorio: Authorization: Bearer <token> (roles: gerente|operador).
+Respuestas 401/403 cuando falta token o rol insuficiente.
+
+Endpoints
+---------
+
+1) GET /clientes/hello
+   - Probar módulo. Sin auth.
+   - 200: "Hello Cliente!!!"
+
+2) POST /clientes
+   - Crear cliente.
+   - Body (JSON):
+     {
+       "nombre": "Juan",
+       "apellido": "Pérez",
+       "documento": "30123456789",
+       "telefono": "+5491112345678",
+       "email": "juan.perez@demo.local",
+       "direccion": "Av. Siempre Viva 123"
+     }
+   - Reglas:
+     * documento normalizado a dígitos
+     * documento único
+     * email (si existe) único (case-insensitive)
+     * nro_cliente generado automáticamente (000001, 000002, ...)
+   - 201: { id, nro_cliente, nombre, apellido, documento, telefono, email, direccion, estado }
+   - 409: { "message": "Documento ya registrado" } | { "message": "Email ya registrado" }
+   - 500: { "message": "Error al crear cliente" }
+
+3) POST /clientes/search
+   - Listar con paginación por página/limit + filtros y orden.
+   - Body (JSON):
+     {
+       "page": 1,
+       "limit": 20,
+       "buscar": "per",
+       "estado": "activo" | "inactivo" | null,
+       "creado_desde": "YYYY-MM-DD" | null,
+       "creado_hasta": "YYYY-MM-DD" | null,
+       "ordenar_por": "apellido" | "nro_cliente" | "creado_en",
+       "orden": "asc" | "desc",
+       "activos_primero": true|false
+     }
+   - Búsqueda:
+     * Si 'buscar' es numérico → documento LIKE 'valor%'
+     * Si contiene letras → nombre/apellido que CONTIENEN el término, insensible a mayúsculas y acentos:
+       - Por defecto: normalización con translate() (sin extensiones)
+       - Opcional: si en Postgres existe CREATE EXTENSION unaccent, se puede usar unaccent()
+   - Respuesta 200:
+     {
+       "items": [ { ...cliente... }, ... ],
+       "page": 1,
+       "limit": 20,
+       "total_count": 9999,
+       "total_pages": 500,
+       "has_prev": false,
+       "has_next": true
+     }
+   - 400: formato de fechas inválido (si aplica)
+   - 500: "Error listando clientes"
+
+4) GET /clientes/all
+   - Listado completo (solo admin). Útil para auditoría o exportaciones pequeñas.
+   - 200: [ { ...cliente... }, ... ]
+   - 500: "Error al listar clientes"
+
+5) POST /clientes/paginated
+   - Paginado por cursor usando id ascendente (útil para scroll infinito o exportaciones grandes).
+   - Body:
+     { "limit": 25, "last_seen_id": null | 123 }
+   - 200:
+     {
+       "clientes": [ { ... }, ... ],
+       "next_cursor": 456 | null
+     }
+
+6) GET /clientes/{cliente_id}
+   - Detalle por id.
+   - 200: { ...cliente... }
+   - 404: "Cliente no encontrado"
+   - 500: "Error al obtener cliente"
+
+7) PUT /clientes/{cliente_id}
+   - Actualizar datos.
+   - Body (cualquier subset):
+     {
+       "nombre": "...",
+       "apellido": "...",
+       "documento": "30123456789",
+       "telefono": "...",
+       "email": "...",
+       "direccion": "...",
+       "estado": "activo" | "inactivo"
+     }
+   - Reglas:
+     * Mantiene unicidad de documento/email (excluyendo el propio cliente)
+   - 200: { "message": "Cliente actualizado" }
+   - 404 | 409 | 500: según corresponda
+
+8) DELETE /clientes/{cliente_id}
+   - Inactivar (baja lógica). No elimina registros.
+   - 200: { "message": "Cliente inactivado" }
+   - 404 | 500
+
+Ejemplos de uso
+---------------
+A) Búsqueda por texto (insensible a acentos):
+   POST /clientes/search
+   {
+     "page": 1,
+     "limit": 10,
+     "buscar": "perez",
+     "ordenar_por": "apellido",
+     "orden": "asc"
+   }
+
+B) Búsqueda por documento (prefijo):
+   {
+     "page": 1,
+     "limit": 10,
+     "buscar": "30123"
+   }
+
+C) Rango de fechas + activos primero:
+   {
+     "page": 1,
+     "limit": 20,
+     "creado_desde": "2025-01-01",
+     "creado_hasta": "2025-12-31",
+     "ordenar_por": "creado_en",
+     "orden": "desc",
+     "activos_primero": true
+   }
+
+Notas técnicas
+--------------
+- Normalización de búsqueda:
+  * Por defecto: lower(translate(col, 'ÁÀÄÂ...','AAAA...')) LIKE '%term%'
+  * Alternativa: lower(unaccent(col)) LIKE '%term%' si está instalada la extensión unaccent.
+- Performance: para catálogos grandes se recomienda índice funcional acorde a la estrategia elegida de normalización.
+- Seguridad: todos los endpoints relevantes validan roles (gerente|operador).
+
+Errores comunes
+---------------
+- 401/403: falta token o rol insuficiente.
+- 409: documento/email duplicados al crear/actualizar.
+- 400: formato de fecha inválido (YYYY-MM-DD).
+- 500: error interno (consultar logs del backend).

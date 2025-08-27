@@ -1,0 +1,174 @@
+{
+  "info": {
+    "name": "UP-Core — Clientes (v2)",
+    "_postman_id": "8f0d4f2a-0b66-4b1f-9d7b-clientes-updated",
+    "description": "Colección de endpoints de Clientes: hello, login, crear, buscar (POST /search), paginado por cursor, detalle, actualizar e inactivar. Requiere token de gerente u operador para la mayoría de operaciones.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "token", "value": "" },
+    { "key": "gerenteDocumento", "value": "" },
+    { "key": "clienteId", "value": "" },
+    { "key": "nextCursor", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Root — Hello /",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/", "host": ["{{baseUrl}}"], "path": [""] }
+      }
+    },
+    {
+      "name": "Auth — Login (por documento) /users/login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let j={}; try{j=pm.response.json()}catch(e){}",
+              "if(j && j.token){ pm.environment.set('token', j.token); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"documento\": \"{{gerenteDocumento}}\",\n  \"password\": \"secret\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/users/login", "host": ["{{baseUrl}}"], "path": ["users", "login"] }
+      }
+    },
+    {
+      "name": "Clientes — Hello /clientes/hello",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/clientes/hello", "host": ["{{baseUrl}}"], "path": ["clientes", "hello"] }
+      }
+    },
+    {
+      "name": "Clientes — Buscar (POST /clientes/search)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"page\": 1,\n  \"limit\": 20,\n  \"buscar\": \"per\",\n  \"estado\": null,\n  \"ordenar_por\": \"apellido\",\n  \"orden\": \"asc\",\n  \"activos_primero\": true\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/clientes/search", "host": ["{{baseUrl}}"], "path": ["clientes", "search"] }
+      }
+    },
+    {
+      "name": "Clientes — Buscar (por rango de fechas)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"page\": 1,\n  \"limit\": 20,\n  \"creado_desde\": \"2025-01-01\",\n  \"creado_hasta\": \"2025-12-31\",\n  \"ordenar_por\": \"creado_en\",\n  \"orden\": \"desc\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/clientes/search", "host": ["{{baseUrl}}"], "path": ["clientes", "search"] }
+      }
+    },
+    {
+      "name": "Clientes — Crear /clientes",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let j={}; try{j=pm.response.json()}catch(e){}",
+              "if(j && j.id){ pm.environment.set('clienteId', j.id); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Juan\",\n  \"apellido\": \"Pérez\",\n  \"documento\": \"30123456789\",\n  \"telefono\": \"+5491112345678\",\n  \"email\": \"juan.perez@demo.local\",\n  \"direccion\": \"Av. Siempre Viva 123\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/clientes", "host": ["{{baseUrl}}"], "path": ["clientes"] }
+      }
+    },
+    {
+      "name": "Clientes — Listar todos /clientes/all",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": { "raw": "{{baseUrl}}/clientes/all", "host": ["{{baseUrl}}"], "path": ["clientes", "all"] }
+      }
+    },
+    {
+      "name": "Clientes — Paginado por cursor /clientes/paginated",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let j={}; try{j=pm.response.json()}catch(e){}",
+              "if(j && j.next_cursor){ pm.environment.set('nextCursor', j.next_cursor); } else { pm.environment.unset('nextCursor'); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"limit\": 25,\n  \"last_seen_id\": null\n}" },
+        "url": { "raw": "{{baseUrl}}/clientes/paginated", "host": ["{{baseUrl}}"], "path": ["clientes", "paginated"] }
+      }
+    },
+    {
+      "name": "Clientes — Obtener por id /clientes/{{clienteId}}",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": { "raw": "{{baseUrl}}/clientes/{{clienteId}}", "host": ["{{baseUrl}}"], "path": ["clientes", "{{clienteId}}"] }
+      }
+    },
+    {
+      "name": "Clientes — Actualizar /clientes/{{clienteId}}",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"telefono\": \"+5491166667777\",\n  \"direccion\": \"Calle Falsa 742\"\n}" },
+        "url": { "raw": "{{baseUrl}}/clientes/{{clienteId}}", "host": ["{{baseUrl}}"], "path": ["clientes", "{{clienteId}}"] }
+      }
+    },
+    {
+      "name": "Clientes — Inactivar /clientes/{{clienteId}}",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": { "raw": "{{baseUrl}}/clientes/{{clienteId}}", "host": ["{{baseUrl}}"], "path": ["clientes", "{{clienteId}}"] }
+      }
+    }
+  ]
+}
