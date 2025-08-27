@@ -162,35 +162,3 @@ class Contrato(Base):
     cliente = relationship("Cliente", back_populates="contratos")
     plan = relationship("Plan", back_populates="contratos")
     facturas = relationship("Factura", back_populates="contrato")
-
-
-# -----------------------------
-# Pago
-# -----------------------------
-class Pago(Base):
-    __tablename__ = "pago"
-
-    id = Column(Integer, primary_key=True)
-    factura_id = Column(
-        Integer,
-        ForeignKey("factura.id", ondelete="RESTRICT"),
-        index=True,
-        nullable=False,
-    )
-    fecha = Column(
-        DateTime, default=datetime.utcnow, nullable=False, index=True
-    )  # 👈 index
-    monto = Column(Numeric(12, 2), nullable=False)
-    metodo = Column(SAEnum(MetodoPagoEnum, name="metodo_pago_enum"), nullable=False)
-    referencia = Column(String(80), nullable=True)  # nro de transferencia, etc.
-    comprobante_path = Column(String(300), nullable=True)
-    recibo_path = Column(String(300), nullable=True)
-    estado = Column(
-        SAEnum(EstadoPagoEnum, name="estado_pago_enum"),
-        nullable=False,
-        default=EstadoPagoEnum.registrado.value,
-        index=True,  # 👈 filtrar por estado
-    )
-    creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    factura = relationship("Factura", back_populates="pagos")
