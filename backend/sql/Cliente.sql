@@ -1,3 +1,5 @@
+BEGIN;
+
 WITH u AS (
   SELECT id AS usuario_id, row_number() OVER (ORDER BY id) rn
   FROM usuario
@@ -13,3 +15,9 @@ SET usuario_id = u.usuario_id
 FROM u
 JOIN c ON c.rn = u.rn
 WHERE cliente.id = c.cliente_id;
+
+-- Checks:
+-- SELECT COUNT(*) FROM cliente WHERE usuario_id IS NOT NULL;
+-- SELECT COUNT(*) FROM cliente WHERE usuario_id IS NULL;
+
+COMMIT;

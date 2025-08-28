@@ -89,7 +89,7 @@ def get_all_users(req: Request, db: Session = Depends(get_db)):
                 "id": u.id,
                 "email": u.email,
                 "documento": u.documento,
-                "role": u.role,
+                "role": u.role.value if hasattr(u.role, "value") else u.role,
                 "activo": u.activo,
                 "creado_en": u.creado_en.isoformat() if u.creado_en else None,
             }
@@ -119,7 +119,7 @@ def get_users_paginated(
             "id": u.id,
             "email": u.email,
             "documento": u.documento,
-            "role": u.role,
+            "role": u.role.value if hasattr(u.role, "value") else u.role,
             "activo": u.activo,
             "creado_en": u.creado_en.isoformat() if u.creado_en else None,
         }
@@ -182,7 +182,9 @@ def login_user(us: InputLogin, db: Session = Depends(get_db)):
                     "id": user.id,
                     "email": user.email,
                     "documento": user.documento,
-                    "role": user.role,
+                    "role": (
+                        user.role.value if hasattr(user.role, "value") else user.role
+                    ),
                     "activo": user.activo,
                 },
                 "message": "User logged in successfully!",
@@ -246,7 +248,9 @@ def create_user(us: InputUsuarioCreate, req: Request, db: Session = Depends(get_
                 "id": nuevo.id,
                 "email": nuevo.email,
                 "documento": nuevo.documento,
-                "role": nuevo.role,
+                "role": (
+                    nuevo.role.value if hasattr(nuevo.role, "value") else nuevo.role
+                ),
                 "activo": nuevo.activo,
             },
         )

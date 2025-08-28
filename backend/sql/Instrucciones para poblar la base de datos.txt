@@ -1,13 +1,16 @@
-Planes.sql (asegura que existan planes).
+1) Asegurate de que el esquema esté creado por la app (o ejecutá Base.metadata.create_all).
+   - Arrancá la API una vez o corré el migrador que uses.
 
-Usuarios.sql (crea gerente/operador/clientes usuarios).
+2) Ejecutá en este orden (pgAdmin → Query Tool):
+   a) Usuarios.sql         (crea gerente, operador y 9.998 usuarios con rol cliente)
+   b) Clientes.sql         (crea 10.000 clientes de demo)
+   c) Cliente.sql          (opcional: enlaza 1 a 1 usuarios rol cliente ↔ clientes)
 
-Clientes.sql (crea clientes).
+3) Verificaciones rápidas:
+   - SELECT role, COUNT(*) FROM usuario GROUP BY role ORDER BY role;
+   - SELECT COUNT(*) FROM cliente;
+   - SELECT COUNT(*) FROM cliente WHERE usuario_id IS NOT NULL;
 
-(Opcional) Cliente.sql para vincular cliente.usuario_id ↔ usuario.id de clientes.
-
-Contratos.sql (crea contratos para algunos clientes). No dependas de IDs 1..300; tu archivo actual sí lo hace.
-
-Facturas (usa el script corregido arriba).
-
-Pagos (usa el script corregido arriba).
+4) NOTAS:
+   - Por ahora ignoramos Facturas/Pagos (removidos del backend).
+   - Si luego querés usar Contratos/Planes, agregá scripts separados (sin asumir IDs fijos).

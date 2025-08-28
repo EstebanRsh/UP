@@ -136,7 +136,11 @@ def crear_cliente(req: Request, body: ClienteCreate, db: Session = Depends(get_d
                 "telefono": nuevo.telefono,
                 "email": nuevo.email,
                 "direccion": nuevo.direccion,
-                "estado": nuevo.estado,
+                "estado": (
+                    nuevo.estado.value
+                    if hasattr(nuevo.estado, "value")
+                    else nuevo.estado
+                ),
             },
         )
     except Exception:
@@ -222,7 +226,7 @@ def listar_clientes(
                 "telefono": c.telefono,
                 "email": c.email,
                 "direccion": c.direccion,
-                "estado": c.estado,
+                "estado": c.estado.value if hasattr(c.estado, "value") else c.estado,
                 "creado_en": c.creado_en.isoformat() if c.creado_en else None,
             }
             for c in filas
@@ -265,7 +269,7 @@ def listar_clientes_admin(req: Request, db: Session = Depends(get_db)):
                 "telefono": c.telefono,
                 "email": c.email,
                 "direccion": c.direccion,
-                "estado": c.estado,
+                "estado": c.estado.value if hasattr(c.estado, "value") else c.estado,
                 "creado_en": c.creado_en.isoformat() if c.creado_en else None,
             }
             for c in rows
@@ -300,7 +304,7 @@ def clientes_paginados(
                 "telefono": c.telefono,
                 "email": c.email,
                 "direccion": c.direccion,
-                "estado": c.estado,
+                "estado": c.estado.value if hasattr(c.estado, "value") else c.estado,
                 "creado_en": c.creado_en.isoformat() if c.creado_en else None,
             }
             for c in rows
@@ -338,7 +342,7 @@ def obtener_cliente(cliente_id: int, req: Request, db: Session = Depends(get_db)
                 "telefono": c.telefono,
                 "email": c.email,
                 "direccion": c.direccion,
-                "estado": c.estado,
+                "estado": c.estado.value if hasattr(c.estado, "value") else c.estado,
                 "creado_en": c.creado_en.isoformat() if c.creado_en else None,
             },
         )
@@ -406,7 +410,7 @@ def actualizar_cliente(
         db.refresh(c)
         return JSONResponse(status_code=200, content={"message": "Cliente actualizado"})
     except Exception:
-        db.rollback
+        db.rollback()  # <- faltaban los paréntesis
         return JSONResponse(
             status_code=500, content={"message": "Error al actualizar cliente"}
         )
