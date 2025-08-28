@@ -1,7 +1,60 @@
 @import "tailwindcss";
-/* extras opcionales */
+/* Dark mode por clase .dark (toggle) */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* ========= 1) COLORES DEL LOGO (fáciles de editar) =========
+   Si querés ajustar el tono/intensidad, cambiá SOLO estos hex.
+   brand-500 ≈ celeste principal del logo
+   brand-600 ≈ borde/sombra más intensa del logo
+*/
+:root {
+  --brand-50: #eef4ff; /* celeste casi blanco */
+  --brand-100: #dce8ff;
+  --brand-200: #b9d1ff;
+  --brand-300: #8eb4ff;
+  --brand-400: #5c92ff;
+  --brand-500: #2f72ff; /* principal */
+  --brand-600: #245ad8; /* más profundo (contorno) */
+
+  /* superficies por defecto */
+  --surface: #ffffff;
+  --ink: #0f172a; /* slate-900 */
+}
+
+/* En oscuro mantenemos el mismo “celeste de marca” pero
+   apenas más vibrante para que contraste mejor en fondo oscuro */
+:root.dark {
+  --surface: #0b1220; /* slate-950 aprox */
+  --ink: #e2e8f0; /* slate-200 */
+
+  --brand-400: #6a9cff;
+  --brand-500: #3f7dff;
+  --brand-600: #2a5fd1;
+}
+
+/* ========= 2) MAPEO A TAILWIND (brand-*) =========
+   Usarás bg-brand-500, text-brand-600, from-brand-400, etc.
+*/
+@theme {
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+
+  /* (opcionales para body, por si querés usarlos) */
+  --color-surface: var(--surface);
+  --color-surface-ink: var(--ink);
+}
+
+/* ========= 3) BASE SENCILLA ========= */
 @layer base {
+  html,
+  body {
+    @apply h-full;
+  }
   body {
     @apply antialiased;
   }
