@@ -1,8 +1,6 @@
-/* src/index.css */
-@import "tailwindcss/preflight";
-@import "tailwindcss/utilities";
-
+@import "tailwindcss";
 /* extras opcionales */
+@custom-variant dark (&:where(.dark, .dark *));
 @layer base {
   body {
     @apply antialiased;
