@@ -1,8 +1,9 @@
 // src/pages/dashboard/Operador.tsx
 /**
  * Dashboard · Operador (paginación real + UX)
- * - Pausa mínima de 3s en cada carga (buscar, filtrar, paginar) con overlay “Cargando…”.
- * - Mantiene el scroll al paginar/filtrar (no salta al tope).
+ * - Pausa mínima (MIN_LOADING_MS) en cada carga con overlay “Cargando…”.
+ * - Mantiene el scroll al paginar/filtrar/buscar.
+ * - Altura de tabla estable: min-height dinámico y filas placeholder para completar hasta el 'limit'.
  * - Botón "Acciones" por fila → navega a detalle del cliente.
  */
 
@@ -28,7 +29,15 @@ import { Link } from "react-router-dom";
 
 const CEL = "#0DA3E3";
 const CEL_DARK = "#087BBE";
-const MIN_LOADING_MS = 250; // ⏱️ pausa mínima
+
+// ⏱️ Pausa mínima de carga (ajustaste a 250ms)
+const MIN_LOADING_MS = 250;
+
+// 🎯 Para estabilizar la altura: altura de fila ≈ h-11 (44px) + header ~56px
+const ROW_H = 44;
+const HEADER_PAD = 56;
+const tableMinHeight = (limit: number) =>
+  Math.max(260, ROW_H * limit + HEADER_PAD);
 
 type Params = {
   page: number;
@@ -40,7 +49,7 @@ type Params = {
   activos_primero: boolean;
 };
 
-// helper para imponer un tiempo mínimo de carga
+// helper: impone tiempo mínimo de carga
 async function withMinDelay<T>(p: Promise<T>, ms: number): Promise<T> {
   const [res] = await Promise.all([
     p,
@@ -70,7 +79,7 @@ export default function Operador() {
   const [loading, setLoading] = useState(false);
   const [resp, setResp] = useState<ClienteSearchResponse | null>(null);
 
-  // Evitar salto de scroll al cambiar página/filtros
+  // Evitar salto de scroll al cambiar de página/filtros/buscar
   const lastScrollYRef = useRef<number>(0);
   const shouldRestoreScrollRef = useRef(false);
   function rememberScrollAnd(fn: () => void) {
@@ -85,7 +94,7 @@ export default function Operador() {
     }
   }, [loading]);
 
-  // Carga de datos con MIN_LOADING_MS
+  // Carga de datos (con pausa mínima)
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -137,7 +146,7 @@ export default function Operador() {
 
   const rows: ClienteListItem[] = useMemo(() => resp?.items ?? [], [resp]);
 
-  // update normal
+  // helpers UI
   function update<K extends keyof Params>(key: K, value: Params[K]) {
     setParams((p) => ({
       ...p,
@@ -153,13 +162,36 @@ export default function Operador() {
       [key]: value,
     }));
   }
-  // update recordando scroll (para filtros/búsquedas también)
   function updateRemember<K extends keyof Params>(key: K, value: Params[K]) {
     rememberScrollAnd(() => update(key, value));
   }
 
   const canPrev = !!resp?.has_prev;
   const canNext = !!resp?.has_next;
+
+  // 🔧 filas placeholder para completar hasta 'limit' (evita contracción de la tabla)
+  function renderPlaceholders(n: number) {
+    if (n <= 0) return null;
+    return Array.from({ length: n }).map((_, i) => (
+      <tr
+        key={`ph-${i}`}
+        className="h-11 border-t border-transparent"
+        aria-hidden="true"
+      >
+        {/* 7 columnas vacías para mantener distribución */}
+        <td className="h-11 py-2">&nbsp;</td>
+        <td className="h-11 py-2">&nbsp;</td>
+        <td className="h-11 py-2">&nbsp;</td>
+        <td className="h-11 py-2">&nbsp;</td>
+        <td className="h-11 py-2">&nbsp;</td>
+        <td className="h-11 py-2">&nbsp;</td>
+        <td className="h-11 py-2">&nbsp;</td>
+      </tr>
+    ));
+  }
+
+  const placeholdersCount =
+    !loading && rows.length > 0 ? Math.max(0, params.limit - rows.length) : 0;
 
   return (
     <div className="space-y-6">
@@ -285,46 +317,59 @@ export default function Operador() {
           </div>
         </div>
 
-        {/* Tabla + overlay */}
-        <div className="relative mt-4 overflow-x-auto min-h-[260px]">
-          <table className="min-w-full text-sm">
+        {/* Tabla + overlay
+            - minHeight depende del 'limit' para que no se contraiga
+            - filas placeholder completan hasta limit
+        */}
+        <div
+          className="relative mt-4 overflow-x-auto"
+          style={{ minHeight: `${tableMinHeight(params.limit)}px` }}
+        >
+          <table className="min-w-full table-fixed text-sm">
             <thead className="text-left text-slate-500 dark:text-slate-400">
               <tr>
-                <th className="py-2">#</th>
-                <th>Nombre</th>
-                <th>Documento</th>
-                <th>Email</th>
-                <th>Teléfono</th>
-                <th>Estado</th>
-                <th></th>
+                <th className="py-2 w-24">#</th>
+                <th className="py-2 w-[28%]">Nombre</th>
+                <th className="py-2 w-32">Documento</th>
+                <th className="py-2 w-[22%]">Email</th>
+                <th className="py-2 w-32">Teléfono</th>
+                <th className="py-2 w-28">Estado</th>
+                <th className="py-2 w-24"></th>
               </tr>
             </thead>
             <tbody>
               {!loading && rows.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="py-6 text-center text-slate-500 dark:text-slate-400"
-                  >
-                    Sin resultados
-                  </td>
-                </tr>
+                <>
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="h-11 py-6 text-center text-slate-500 dark:text-slate-400"
+                    >
+                      Sin resultados
+                    </td>
+                  </tr>
+                  {/* placeholders para llenar hasta 'limit' */}
+                  {renderPlaceholders(Math.max(0, params.limit - 1))}
+                </>
               )}
 
               {!loading &&
+                rows.length > 0 &&
                 rows.map((c) => (
                   <tr
                     key={c.id}
-                    className="border-t border-slate-100 dark:border-slate-800"
+                    className="h-11 border-t border-slate-100 align-middle dark:border-slate-800"
                   >
-                    <td className="py-2">{c.nro_cliente}</td>
-                    <td>
+                    <td className="h-11 whitespace-nowrap">{c.nro_cliente}</td>
+                    <td className="h-11 whitespace-nowrap">
                       {c.apellido ? `${c.apellido}, ${c.nombre}` : c.nombre}
                     </td>
-                    <td>{c.documento}</td>
-                    <td>{c.email ?? "-"}</td>
-                    <td>{c.telefono ?? "-"}</td>
-                    <td>
+                    <td className="h-11 whitespace-nowrap">{c.documento}</td>
+                    <td className="h-11 whitespace-nowrap">{c.email ?? "-"}</td>
+                    <td className="h-11 whitespace-nowrap">
+                      {c.telefono ?? "-"}
+                    </td>
+                    <td className="h-11 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
                           c.estado === "activo"
@@ -335,7 +380,7 @@ export default function Operador() {
                         {c.estado}
                       </span>
                     </td>
-                    <td className="text-right">
+                    <td className="h-11 whitespace-nowrap text-right">
                       <Link
                         to={`/operador/clientes/${c.id}`}
                         className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs dark:border-slate-700"
@@ -346,6 +391,11 @@ export default function Operador() {
                     </td>
                   </tr>
                 ))}
+
+              {/* completa con placeholders para no contraer la altura */}
+              {!loading &&
+                rows.length > 0 &&
+                renderPlaceholders(placeholdersCount)}
             </tbody>
           </table>
 
