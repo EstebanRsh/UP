@@ -1,7 +1,24 @@
 /**
  * Dashboard · Gerente
- * Contenedor base para accesos a gestión de usuarios, clientes y reportes.
- * (Lugar para widgets y métricas del rol gerente).
+ * Enfoque de dirección/negocio: visión general de clientes, ingresos, alertas y altas.
+ *
+ * Contenido:
+ *  - KPIs (Clientes activos, Ingresos del mes, Alertas/Morosidad, Altas del mes).
+ *  - Acciones rápidas (Nuevo cliente, Registrar pago, Exportar CSV).
+ *  - Tablas/placers: Pagos recientes y Clientes nuevos.
+ *
+ * Estado actual:
+ *  - Usa datos de muestra (placeholders) para layout y estilos.
+ *  - Preparado para conectar a endpoints reales (ej. /clientes, /pagos, /reportes).
+ *
+ * Diseño:
+ *  - Borde superior celeste en bloques, consistente con la topbar.
+ *  - Tipografía sobria, responsive, dark-mode solo en contenido central.
+ *
+ * Próximos pasos sugeridos:
+ *  - Reemplazar MOCK por fetch (con cache) y filtros por fecha.
+ *  - Exportar desde datos reales (CSV/XLSX).
+ *  - Estados vacíos/errores y skeletons de carga.
  */
 
 import KpiCard from "../../components/KpiCard";

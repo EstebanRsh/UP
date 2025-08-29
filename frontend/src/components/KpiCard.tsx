@@ -1,3 +1,27 @@
+/**
+ * KpiCard
+ * Tarjeta reutilizable para números clave (KPIs) con icono, valor y pista/hint opcional.
+ *
+ * Props:
+ *  - title: string        → Etiqueta del KPI (ej. "Clientes activos")
+ *  - value: string|number → Valor destacado (ej. 1243, "$ 3.2M")
+ *  - icon: LucideIcon     → Icono de lucide-react (ej. Users, DollarSign)
+ *  - hint?: string        → Texto auxiliar en pequeño (ej. "+18 este mes")
+ *  - trend?: "up"|"down"  → Indicador de tendencia (▲ / ▼) opcional
+ *
+ * Diseño:
+ *  - Borde superior celeste coherente con la topbar.
+ *  - Contenedor sobrio (claro/oscuro) y responsive.
+ *  - Icono en "pill" con degradado celeste (no usa azules).
+ *
+ * Accesibilidad:
+ *  - El contenido textual (title/value/hint) es legible en lectores de pantalla.
+ *
+ * Personalización rápida:
+ *  - Ajustá los colores CEL/CEL_DARK para matchear la identidad (o muévelos a tokens globales).
+ *  - Podés agregar prop "onClick" si querés que la tarjeta sea accionable.
+ */
+
 import type { LucideIcon } from "lucide-react";
 
 const CEL = "#0DA3E3";

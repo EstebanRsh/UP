@@ -1,7 +1,23 @@
 /**
  * Dashboard · Operador
- * Contenedor base para tareas operativas (altas/bajas/búsquedas de clientes).
- * (Lugar para atajos y tablas de trabajo diario).
+ * Enfoque operativo: trabajo diario sobre clientes, altas y tareas técnicas.
+ *
+ * Contenido:
+ *  - KPIs (Tickets abiertos, Altas pendientes, Cortes programados, SLA).
+ *  - Búsqueda rápida de clientes (filtro local de ejemplo).
+ *  - Acciones: Alta de cliente, Programar visita (placeholders).
+ *
+ * Estado actual:
+ *  - MOCK para resultados de búsqueda; pensado para migrar a /clientes/search.
+ *
+ * Diseño:
+ *  - Componentes sobrios, tabla responsive y controles accesibles.
+ *  - Borde superior celeste en bloques, consistente con la identidad.
+ *
+ * Próximos pasos sugeridos:
+ *  - Integrar paginación/orden con backend.
+ *  - Agregar toasts y validaciones al crear tareas/altas.
+ *  - Estados vacíos y manejo de permisos por rol.
  */
 
 import KpiCard from "../../components/KpiCard";

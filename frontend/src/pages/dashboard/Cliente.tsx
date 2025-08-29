@@ -1,7 +1,23 @@
 /**
  * Dashboard · Cliente
- * Contenedor base para ver estado de cuenta, pagos y soporte.
- * (Lugar para tarjetas/resumen del cliente autenticado).
+ * Autogestión: resumen de plan/estado, movimientos y acciones comunes.
+ *
+ * Contenido:
+ *  - KPIs (Plan, Estado, Saldo).
+ *  - Movimientos recientes (placeholder).
+ *  - Acciones: Pagar ahora (futuro), Crear ticket de soporte.
+ *
+ * Estado actual:
+ *  - Datos de ejemplo; listo para enlazar a /cliente/me, /pagos/mios, etc.
+ *
+ * Diseño:
+ *  - Mismo patrón visual: bloques con borde superior celeste y dark-mode en contenido.
+ *  - Botones de acción con degradado celeste (sin azules).
+ *
+ * Próximos pasos sugeridos:
+ *  - Integrar método de pago y estados de factura.
+ *  - Página de perfil/actualización de datos.
+ *  - Historial completo con filtros (fecha, tipo).
  */
 
 import KpiCard from "../../components/KpiCard";
