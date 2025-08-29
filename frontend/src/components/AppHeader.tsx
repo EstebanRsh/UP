@@ -64,10 +64,10 @@ export default function AppHeader({
           </button>
 
           <Link to={home} className="flex items-center gap-2">
-            <img src="/logo-uplink.svg" alt="uplink" className="h-6 w-auto" />
+            <img src="/up.png" alt="uplink" className="h-6 w-auto" />
             {showBrandText && (
               <span className="hidden text-sm font-semibold tracking-wide uppercase sm:inline">
-                uplink
+                up link
               </span>
             )}
           </Link>
