@@ -1,8 +1,8 @@
 // src/pages/dashboard/Operador.tsx
 /**
  * Dashboard · Operador (paginación real + UX)
- * - Mantiene el scroll al paginar (no salta al tope).
- * - Overlay "Cargando…" con spinner para evitar parpadeos.
+ * - Pausa mínima de 3s en cada carga (buscar, filtrar, paginar) con overlay “Cargando…”.
+ * - Mantiene el scroll al paginar/filtrar (no salta al tope).
  * - Botón "Acciones" por fila → navega a detalle del cliente.
  */
 
@@ -28,6 +28,7 @@ import { Link } from "react-router-dom";
 
 const CEL = "#0DA3E3";
 const CEL_DARK = "#087BBE";
+const MIN_LOADING_MS = 250; // ⏱️ pausa mínima
 
 type Params = {
   page: number;
@@ -38,6 +39,15 @@ type Params = {
   orden: "asc" | "desc";
   activos_primero: boolean;
 };
+
+// helper para imponer un tiempo mínimo de carga
+async function withMinDelay<T>(p: Promise<T>, ms: number): Promise<T> {
+  const [res] = await Promise.all([
+    p,
+    new Promise<void>((r) => setTimeout(r, ms)),
+  ]);
+  return res;
+}
 
 export default function Operador() {
   const [params, setParams] = useState<Params>({
@@ -50,6 +60,7 @@ export default function Operador() {
     activos_primero: false,
   });
 
+  // Debounce de búsqueda
   const [debouncedBuscar, setDebouncedBuscar] = useState(params.buscar);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedBuscar(params.buscar), 350);
@@ -74,21 +85,24 @@ export default function Operador() {
     }
   }, [loading]);
 
-  // Carga de datos
+  // Carga de datos con MIN_LOADING_MS
   useEffect(() => {
     let alive = true;
     (async () => {
       setLoading(true);
       try {
-        const data = await searchClientesPaged({
-          page: params.page,
-          limit: params.limit,
-          buscar: debouncedBuscar || undefined,
-          estado: params.estado || undefined,
-          ordenar_por: params.ordenar_por,
-          orden: params.orden,
-          activos_primero: params.activos_primero,
-        });
+        const data = await withMinDelay(
+          searchClientesPaged({
+            page: params.page,
+            limit: params.limit,
+            buscar: debouncedBuscar || undefined,
+            estado: params.estado || undefined,
+            ordenar_por: params.ordenar_por,
+            orden: params.orden,
+            activos_primero: params.activos_primero,
+          }),
+          MIN_LOADING_MS
+        );
         if (alive) setResp(data);
       } catch (e: any) {
         if (alive) {
@@ -123,6 +137,7 @@ export default function Operador() {
 
   const rows: ClienteListItem[] = useMemo(() => resp?.items ?? [], [resp]);
 
+  // update normal
   function update<K extends keyof Params>(key: K, value: Params[K]) {
     setParams((p) => ({
       ...p,
@@ -137,6 +152,10 @@ export default function Operador() {
           : p.page,
       [key]: value,
     }));
+  }
+  // update recordando scroll (para filtros/búsquedas también)
+  function updateRemember<K extends keyof Params>(key: K, value: Params[K]) {
+    rememberScrollAnd(() => update(key, value));
   }
 
   const canPrev = !!resp?.has_prev;
@@ -183,7 +202,7 @@ export default function Operador() {
             </span>
             <input
               value={params.buscar}
-              onChange={(e) => update("buscar", e.target.value)}
+              onChange={(e) => updateRemember("buscar", e.target.value)}
               placeholder="Nombre, apellido o documento…"
               className="w-full rounded-lg border bg-white pl-9 pr-3 py-2 outline-none transition focus:ring-2 dark:border-slate-700 dark:bg-slate-950/50"
               style={{ borderColor: "#cbd5e1" }}
@@ -194,7 +213,7 @@ export default function Operador() {
           <select
             value={params.estado}
             onChange={(e) =>
-              update("estado", e.target.value as Params["estado"])
+              updateRemember("estado", e.target.value as Params["estado"])
             }
             className="rounded-lg border bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950/50"
           >
@@ -208,7 +227,10 @@ export default function Operador() {
             <select
               value={params.ordenar_por}
               onChange={(e) =>
-                update("ordenar_por", e.target.value as Params["ordenar_por"])
+                updateRemember(
+                  "ordenar_por",
+                  e.target.value as Params["ordenar_por"]
+                )
               }
               className="flex-1 rounded-lg border bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950/50"
             >
@@ -220,7 +242,7 @@ export default function Operador() {
             <select
               value={params.orden}
               onChange={(e) =>
-                update("orden", e.target.value as Params["orden"])
+                updateRemember("orden", e.target.value as Params["orden"])
               }
               className="w-28 rounded-lg border bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950/50"
             >
@@ -234,7 +256,10 @@ export default function Operador() {
             <select
               value={params.limit}
               onChange={(e) =>
-                update("limit", Number(e.target.value) as Params["limit"])
+                updateRemember(
+                  "limit",
+                  Number(e.target.value) as Params["limit"]
+                )
               }
               className="rounded-lg border bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950/50"
             >
@@ -249,7 +274,9 @@ export default function Operador() {
               <input
                 type="checkbox"
                 checked={params.activos_primero}
-                onChange={(e) => update("activos_primero", e.target.checked)}
+                onChange={(e) =>
+                  updateRemember("activos_primero", e.target.checked)
+                }
                 className="h-4 w-4 rounded border-slate-300 focus:ring-0 dark:border-slate-700"
                 style={{ accentColor: CEL }}
               />
