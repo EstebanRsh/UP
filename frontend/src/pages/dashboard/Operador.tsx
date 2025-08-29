@@ -1,10 +1,12 @@
 // src/pages/dashboard/Operador.tsx
 /**
  * Dashboard · Operador (paginación real + UX)
- * - Pausa mínima (MIN_LOADING_MS) en cada carga con overlay “Cargando…”.
+ * - Pausa mínima (MIN_LOADING_MS) con overlay “Cargando…”.
  * - Mantiene el scroll al paginar/filtrar/buscar.
- * - Altura de tabla estable: min-height dinámico y filas placeholder para completar hasta el 'limit'.
- * - Botón "Acciones" por fila → navega a detalle del cliente.
+ * - Altura de tabla estable (minHeight + placeholders).
+ * - Paginador numerado con elipsis (arreglado: muestra 2 cuando corresponde).
+ * - Footers (paginación y acciones) fijos dentro del card (layout flex-col).
+ * - FIX: nunca baja de página 1; botones deshabilitados durante carga.
  */
 
 import KpiCard from "../../components/KpiCard";
@@ -30,14 +32,75 @@ import { Link } from "react-router-dom";
 const CEL = "#0DA3E3";
 const CEL_DARK = "#087BBE";
 
-// ⏱️ Pausa mínima de carga (ajustaste a 250ms)
+// ⏱️ Pausa mínima
 const MIN_LOADING_MS = 250;
 
-// 🎯 Para estabilizar la altura: altura de fila ≈ h-11 (44px) + header ~56px
-const ROW_H = 44;
-const HEADER_PAD = 56;
+// 🎯 Altura estable por tamaño de página
+const ROW_H = 44; // h-11 aprox
+const HEADER_PAD = 56; // header + paddings
 const tableMinHeight = (limit: number) =>
   Math.max(260, ROW_H * limit + HEADER_PAD);
+
+// Helpers
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+async function withMinDelay<T>(p: Promise<T>, ms: number): Promise<T> {
+  const [res] = await Promise.all([
+    p,
+    new Promise<void>((r) => setTimeout(r, ms)),
+  ]);
+  return res;
+}
+
+/**
+ * Rango paginado con elipsis:
+ * - Si el total de páginas es pequeño, muestra todas.
+ * - Si es grande, muestra [1, 2, 3, …, total] o [1, …, x-1, x, x+1, …, total]
+ *   según la posición de la página actual.
+ */
+function getPaginationRange(
+  current: number,
+  total: number,
+  siblingCount = 1
+): (number | "…")[] {
+  const totalPageNumbers = siblingCount * 2 + 5; // first, last, current + 2 dots
+  if (total <= totalPageNumbers) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const leftSiblingIndex = Math.max(current - siblingCount, 1);
+  const rightSiblingIndex = Math.min(current + siblingCount, total);
+
+  const showLeftDots = leftSiblingIndex > 2;
+  const showRightDots = rightSiblingIndex < total - 1;
+
+  const firstPageIndex = 1;
+  const lastPageIndex = total;
+
+  if (!showLeftDots && showRightDots) {
+    // 1 2 3 4 … last
+    const leftRange = Array.from(
+      { length: 3 + 2 * siblingCount },
+      (_, i) => i + 1
+    );
+    return [...leftRange, "…", lastPageIndex];
+  }
+
+  if (showLeftDots && !showRightDots) {
+    // 1 … (last - (3 + 2*sib) + 1) … last
+    const count = 3 + 2 * siblingCount;
+    const start = lastPageIndex - count + 1;
+    const rightRange = Array.from({ length: count }, (_, i) => start + i);
+    return [firstPageIndex, "…", ...rightRange];
+  }
+
+  // 1 … left..right … last
+  const middleRange = Array.from(
+    { length: rightSiblingIndex - leftSiblingIndex + 1 },
+    (_, i) => leftSiblingIndex + i
+  );
+  return [firstPageIndex, "…", ...middleRange, "…", lastPageIndex];
+}
 
 type Params = {
   page: number;
@@ -48,15 +111,6 @@ type Params = {
   orden: "asc" | "desc";
   activos_primero: boolean;
 };
-
-// helper: impone tiempo mínimo de carga
-async function withMinDelay<T>(p: Promise<T>, ms: number): Promise<T> {
-  const [res] = await Promise.all([
-    p,
-    new Promise<void>((r) => setTimeout(r, ms)),
-  ]);
-  return res;
-}
 
 export default function Operador() {
   const [params, setParams] = useState<Params>({
@@ -79,7 +133,7 @@ export default function Operador() {
   const [loading, setLoading] = useState(false);
   const [resp, setResp] = useState<ClienteSearchResponse | null>(null);
 
-  // Evitar salto de scroll al cambiar de página/filtros/buscar
+  // Evitar salto de scroll al cambiar página/filtros/buscar
   const lastScrollYRef = useRef<number>(0);
   const shouldRestoreScrollRef = useRef(false);
   function rememberScrollAnd(fn: () => void) {
@@ -112,20 +166,31 @@ export default function Operador() {
           }),
           MIN_LOADING_MS
         );
-        if (alive) setResp(data);
-      } catch (e: any) {
-        if (alive) {
-          toast.error(e?.message || "No se pudo obtener clientes.");
-          setResp({
-            items: [],
-            page: params.page,
-            limit: params.limit,
-            total_count: 0,
-            total_pages: 1,
-            has_prev: false,
-            has_next: false,
-          });
+        if (!alive) return;
+
+        const totalPages = Math.max(1, data.total_pages || 1);
+        if (params.page > totalPages) {
+          setParams((p) => ({ ...p, page: totalPages }));
+          setResp({ ...data, page: totalPages });
+        } else if (params.page < 1) {
+          setParams((p) => ({ ...p, page: 1 }));
+          setResp({ ...data, page: 1 });
+        } else {
+          setResp(data);
         }
+      } catch (e: any) {
+        if (!alive) return;
+        toast.error(e?.message || "No se pudo obtener clientes.");
+        setResp({
+          items: [],
+          page: 1,
+          limit: params.limit,
+          total_count: 0,
+          total_pages: 1,
+          has_prev: false,
+          has_next: false,
+        });
+        setParams((p) => ({ ...p, page: 1 }));
       } finally {
         if (alive) setLoading(false);
       }
@@ -148,28 +213,38 @@ export default function Operador() {
 
   // helpers UI
   function update<K extends keyof Params>(key: K, value: Params[K]) {
-    setParams((p) => ({
-      ...p,
-      page:
+    setParams((p) => {
+      let next: Params = { ...p, [key]: value } as Params;
+      if (
         key === "buscar" ||
         key === "estado" ||
         key === "limit" ||
         key === "ordenar_por" ||
         key === "orden" ||
         key === "activos_primero"
-          ? 1
-          : p.page,
-      [key]: value,
-    }));
+      ) {
+        next.page = 1;
+      }
+      if (next.page < 1) next.page = 1;
+      return next;
+    });
   }
   function updateRemember<K extends keyof Params>(key: K, value: Params[K]) {
     rememberScrollAnd(() => update(key, value));
   }
 
-  const canPrev = !!resp?.has_prev;
-  const canNext = !!resp?.has_next;
+  // Paginación segura
+  const totalPages = Math.max(1, resp?.total_pages ?? 1);
+  const page = clamp(params.page, 1, totalPages);
+  const canPrev = !loading && page > 1;
+  const canNext = !loading && page < totalPages;
 
-  // 🔧 filas placeholder para completar hasta 'limit' (evita contracción de la tabla)
+  const pages = useMemo(
+    () => getPaginationRange(page, totalPages, 1),
+    [page, totalPages]
+  );
+
+  // placeholders para altura estable
   function renderPlaceholders(n: number) {
     if (n <= 0) return null;
     return Array.from({ length: n }).map((_, i) => (
@@ -178,7 +253,6 @@ export default function Operador() {
         className="h-11 border-t border-transparent"
         aria-hidden="true"
       >
-        {/* 7 columnas vacías para mantener distribución */}
         <td className="h-11 py-2">&nbsp;</td>
         <td className="h-11 py-2">&nbsp;</td>
         <td className="h-11 py-2">&nbsp;</td>
@@ -189,7 +263,6 @@ export default function Operador() {
       </tr>
     ));
   }
-
   const placeholdersCount =
     !loading && rows.length > 0 ? Math.max(0, params.limit - rows.length) : 0;
 
@@ -218,9 +291,9 @@ export default function Operador() {
         <KpiCard title="SLA hoy" value="96%" icon={Clock} hint="Objetivo 98%" />
       </div>
 
-      {/* Filtros + tabla */}
+      {/* Card principal: ahora es flex-col para fijar los footers */}
       <div
-        className="rounded-xl border bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+        className="flex flex-col rounded-xl border bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
         style={{ borderTopWidth: 4, borderTopColor: CEL }}
       >
         <h3 className="mb-3 text-sm font-semibold">Clientes</h3>
@@ -317,12 +390,9 @@ export default function Operador() {
           </div>
         </div>
 
-        {/* Tabla + overlay
-            - minHeight depende del 'limit' para que no se contraiga
-            - filas placeholder completan hasta limit
-        */}
+        {/* Tabla (flex-1 para que el pie quede fijo) */}
         <div
-          className="relative mt-4 overflow-x-auto"
+          className="relative mt-4 overflow-x-auto flex-1"
           style={{ minHeight: `${tableMinHeight(params.limit)}px` }}
         >
           <table className="min-w-full table-fixed text-sm">
@@ -348,7 +418,6 @@ export default function Operador() {
                       Sin resultados
                     </td>
                   </tr>
-                  {/* placeholders para llenar hasta 'limit' */}
                   {renderPlaceholders(Math.max(0, params.limit - 1))}
                 </>
               )}
@@ -392,7 +461,6 @@ export default function Operador() {
                   </tr>
                 ))}
 
-              {/* completa con placeholders para no contraer la altura */}
               {!loading &&
                 rows.length > 0 &&
                 renderPlaceholders(placeholdersCount)}
@@ -409,22 +477,25 @@ export default function Operador() {
           )}
         </div>
 
-        {/* Paginador */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+        {/* Paginador numerado — ahora no envuelve (nowrap) y tiene altura mínima */}
+        <div className="mt-4 flex min-h-[48px] flex-wrap items-center justify-between gap-3 text-sm">
           <div className="text-slate-600 dark:text-slate-300">
             {resp
-              ? `Página ${resp.page} de ${resp.total_pages} — ${resp.total_count} resultados`
+              ? `Página ${page} de ${totalPages} — ${resp.total_count} resultados`
               : "—"}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 flex-nowrap">
             <button
               type="button"
               disabled={!canPrev}
               onClick={() =>
                 canPrev &&
                 rememberScrollAnd(() =>
-                  setParams((p) => ({ ...p, page: p.page - 1 }))
+                  setParams((p) => ({
+                    ...p,
+                    page: clamp(p.page - 1, 1, totalPages),
+                  }))
                 )
               }
               className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 ${
@@ -438,24 +509,34 @@ export default function Operador() {
               Anterior
             </button>
 
-            <input
-              type="number"
-              min={1}
-              max={Math.max(1, resp?.total_pages ?? 1)}
-              value={params.page}
-              onChange={(e) =>
-                rememberScrollAnd(() =>
-                  setParams((p) => ({
-                    ...p,
-                    page: Math.min(
-                      Math.max(1, Number(e.target.value || 1)),
-                      resp?.total_pages ?? 1
-                    ),
-                  }))
+            {/* Números (con overflow-x auto por si hay muchísimas páginas) */}
+            <div className="mx-1 flex max-w-[60vw] items-center gap-1 overflow-x-auto whitespace-nowrap">
+              {pages.map((p, i) =>
+                p === "…" ? (
+                  <span key={`dots-${i}`} className="px-2 text-slate-400">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    type="button"
+                    disabled={loading || p === page}
+                    onClick={() =>
+                      rememberScrollAnd(() =>
+                        setParams((prev) => ({ ...prev, page: p as number }))
+                      )
+                    }
+                    className={`min-w-9 rounded-lg border px-3 py-1.5 ${
+                      p === page
+                        ? "border-transparent bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-white"
+                        : "hover:bg-white/10 dark:border-slate-700"
+                    }`}
+                  >
+                    {p}
+                  </button>
                 )
-              }
-              className="w-16 rounded-lg border bg-white px-2 py-1.5 text-center dark:border-slate-700 dark:bg-slate-950/50"
-            />
+              )}
+            </div>
 
             <button
               type="button"
@@ -463,7 +544,10 @@ export default function Operador() {
               onClick={() =>
                 canNext &&
                 rememberScrollAnd(() =>
-                  setParams((p) => ({ ...p, page: p.page + 1 }))
+                  setParams((p) => ({
+                    ...p,
+                    page: clamp(p.page + 1, 1, totalPages),
+                  }))
                 )
               }
               className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 ${
@@ -479,8 +563,8 @@ export default function Operador() {
           </div>
         </div>
 
-        {/* Acciones rápidas (placeholders) */}
-        <div className="mt-4 flex flex-wrap gap-2">
+        {/* Acciones rápidas — altura mínima para no mover el layout */}
+        <div className="mt-4 flex min-h-[40px] flex-wrap gap-2">
           <button
             className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white shadow-sm"
             style={{
