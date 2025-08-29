@@ -57,18 +57,15 @@ export default function Login() {
         {/* copy/branding */}
         <section className="hidden md:block">
           <h1 className="bg-gradient-to-r from-brand-500 to-brand-600 bg-clip-text text-4xl font-extrabold text-transparent dark:from-brand-400 dark:to-brand-500">
-            Conectá tu gestión con UP-Core
+            Up-Link gestor
           </h1>
           <p className="mt-4 max-w-md text-sm text-slate-600 dark:text-slate-300">
-            Ingresá con tu documento y contraseña para acceder a tu panel.
-            Diseño inspirado en AnyDesk, con paleta <strong>celeste</strong> y
-            soporte de <strong>modo oscuro/claro</strong>.
+            Ingresá con tu documento y contraseña para acceder a tu panel. En
+            UpLink pensamos en usted. bla bla bla
           </p>
 
           <ul className="mt-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-            <li>• Seguridad con token</li>
-            <li>• Dashboards según tu rol</li>
-            <li>• Interfaz limpia y responsiva</li>
+            <li>• Vea y descargue sus facturas</li>
           </ul>
         </section>
 

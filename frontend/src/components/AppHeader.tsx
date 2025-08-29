@@ -1,36 +1,80 @@
-import { useNavigate } from "react-router-dom";
-import ThemeToggle from "./ThemeToggle";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import ThemeToggle from "./ThemeToggle";
+import { Settings, LogOut } from "lucide-react";
 
-export default function AppHeader() {
+type Props = { showRole?: boolean; showBrandText?: boolean };
+
+export default function AppHeader({
+  showRole = true,
+  showBrandText = true,
+}: Props) {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+
+  const home =
+    user?.role === "gerente"
+      ? "/admin"
+      : user?.role === "operador"
+      ? "/operador"
+      : "/cliente";
 
   const onLogout = () => {
     logout();
     nav("/login", { replace: true });
   };
 
-  return (
-    <header className="sticky top-0 z-20 border-b border-brand-200/60 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-md bg-gradient-to-br from-brand-400 to-brand-600" />
-          <span className="text-base font-semibold tracking-tight">UpLink</span>
-        </div>
+  // Celeste estilo UI que mostraste
+  const TOP_BG = "#0DA3E3";
+  const TOP_BORDER = "#087BBE";
 
-        <div className="flex items-center gap-2">
-          {user?.role && (
-            <span className="hidden text-sm text-slate-600 dark:text-slate-300 sm:inline">
-              Rol: <strong>{user.role}</strong>
+  const iconBtn =
+    "inline-flex h-8 w-8 items-center justify-center rounded-full " +
+    "border border-white/25 bg-white/10 text-white hover:bg-white/20 " +
+    "active:scale-[.98] transition";
+
+  return (
+    <header
+      className="sticky top-0 z-20 h-12 w-full text-white shadow"
+      style={{
+        backgroundColor: TOP_BG,
+        borderBottom: `1px solid ${TOP_BORDER}`,
+      }}
+    >
+      <div className="flex h-full w-full items-center justify-between px-3">
+        {/* Izquierda: Logo + nombre */}
+        <Link to={home} className="flex items-center gap-2">
+          <img src="/logo-uplink.svg" alt="uplink" className="h-6 w-auto" />
+          {showBrandText && (
+            <span className="text-sm font-semibold tracking-wide uppercase">
+              uplink
             </span>
           )}
-          <ThemeToggle />
+        </Link>
+
+        {/* Derecha: Tema, Configuración, Logout */}
+        <div className="flex items-center gap-2">
+          {/* si tu ThemeToggle no acepta 'variant', podés usar <ThemeToggle /> */}
+          <ThemeToggle variant="onPrimary" />
+
           <button
-            onClick={onLogout}
-            className="rounded-xl border border-brand-200/60 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur hover:bg-white active:scale-[.99] dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-200"
+            type="button"
+            className={iconBtn}
+            title="Configuración"
+            aria-label="Configuración"
+            onClick={() => nav("#")} // cambia a /settings cuando lo tengas
           >
-            Cerrar sesión
+            <Settings className="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
+            className={iconBtn}
+            title="Cerrar sesión"
+            aria-label="Cerrar sesión"
+            onClick={onLogout}
+          >
+            <LogOut className="h-4 w-4" />
           </button>
         </div>
       </div>

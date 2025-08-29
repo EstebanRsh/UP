@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import AppHeader from "./AppHeader";
+import AppSidebar from "./AppSidebar";
 
 export default function Protected({
   roles,
@@ -16,9 +17,17 @@ export default function Protected({
   return (
     <>
       <AppHeader />
-      <main className="min-h-[calc(100vh-56px)] bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100">
-        <Outlet />
-      </main>
+      <div className="flex min-h-[calc(100vh-56px)]">
+        {/* Lateral siempre oscuro */}
+        <AppSidebar />
+
+        {/* Contenido central: ÚNICO que reacciona al modo oscuro */}
+        <main className="flex-1 bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+          <div className="mx-auto max-w-6xl p-6">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </>
   );
 }
