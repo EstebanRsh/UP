@@ -7,50 +7,130 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  LayoutDashboard, Users, CreditCard, BarChart3, Settings, User, LifeBuoy
+  LayoutDashboard, Users, CreditCard, BarChart3, Settings, User, LifeBuoy, PackagePlus, ListChecks
 } from "lucide-react";
 
 export type Role = "gerente" | "operador" | "cliente";
 
 export type NavItem = {
+  type: "item";
   label: string;
-  to: string;              // ruta destino (usa "#" si todavía no existe)
+  to: string;            // usa "#" si aún no existe la ruta
   icon: LucideIcon;
-  feature?: string;        // opcional: feature flag
+  feature?: string;      // opcional: flag para activar/desactivar
 };
 
-// Opcional: flags para activar/desactivar módulos sin tocar código del sidebar
+export type NavGroup = {
+  type: "group";
+  label: string;
+  icon: LucideIcon;
+  children: NavItem[];
+  feature?: string;      // si querés esconder todo el grupo bajo una flag
+};
+
+export type NavNode = NavItem | NavGroup;
+
+// Flags opcionales por si querés ocultar módulos sin tocar el componente
 export const FEATURE_FLAGS: Record<string, boolean> = {
   pagos: true,
+  planes: true,
   reportes: true,
 };
 
-// Menú por rol
-export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
+const dashboardFor = (role: Role): NavItem => ({
+  type: "item",
+  label: "Dashboard",
+  to: role === "gerente" ? "/admin" : role === "operador" ? "/operador" : "/cliente",
+  icon: LayoutDashboard,
+});
+
+export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
   gerente: [
-    { label: "Dashboard", to: "/admin",   icon: LayoutDashboard },
-    { label: "Clientes",  to: "#",        icon: Users },
-    { label: "Pagos",     to: "#",        icon: CreditCard, feature: "pagos" },
-    { label: "Reportes",  to: "#",        icon: BarChart3,  feature: "reportes" },
-    { label: "Config.",   to: "#",        icon: Settings },
+    dashboardFor("gerente"),
+    {
+      type: "group",
+      label: "Clientes",
+      icon: Users,
+      children: [
+        { type: "item", label: "Nuevo cliente",  to: "#", icon: PackagePlus },
+        { type: "item", label: "Lista de clientes", to: "#", icon: ListChecks },
+      ],
+    },
+    {
+      type: "group",
+      label: "Pagos",
+      icon: CreditCard,
+      feature: "pagos",
+      children: [
+        { type: "item", label: "Nuevo pago",  to: "#", icon: PackagePlus },
+        { type: "item", label: "Lista de pagos", to: "#", icon: ListChecks },
+      ],
+    },
+    {
+      type: "group",
+      label: "Planes",
+      icon: BarChart3,
+      feature: "planes",
+      children: [
+        { type: "item", label: "Nuevo plan",  to: "#", icon: PackagePlus },
+        { type: "item", label: "Lista de planes", to: "#", icon: ListChecks },
+      ],
+    },
+    { type: "item", label: "Configuración", to: "#", icon: Settings },
   ],
   operador: [
-    { label: "Dashboard", to: "/operador", icon: LayoutDashboard },
-    { label: "Clientes",  to: "#",         icon: Users },
-    { label: "Pagos",     to: "#",         icon: CreditCard, feature: "pagos" },
-    { label: "Reportes",  to: "#",         icon: BarChart3,  feature: "reportes" },
-    { label: "Config.",   to: "#",         icon: Settings },
+    dashboardFor("operador"),
+    {
+      type: "group",
+      label: "Clientes",
+      icon: Users,
+      children: [
+        { type: "item", label: "Nuevo cliente",  to: "#", icon: PackagePlus },
+        { type: "item", label: "Lista de clientes", to: "#", icon: ListChecks },
+      ],
+    },
+    {
+      type: "group",
+      label: "Pagos",
+      icon: CreditCard,
+      feature: "pagos",
+      children: [
+        { type: "item", label: "Nuevo pago",  to: "#", icon: PackagePlus },
+        { type: "item", label: "Lista de pagos", to: "#", icon: ListChecks },
+      ],
+    },
+    { type: "item", label: "Configuración", to: "#", icon: Settings },
   ],
   cliente: [
-    { label: "Mi cuenta", to: "/cliente", icon: User },
-    { label: "Pagos",     to: "#",        icon: CreditCard, feature: "pagos" },
-    { label: "Soporte",   to: "#",        icon: LifeBuoy },
-    { label: "Config.",   to: "#",        icon: Settings },
+    dashboardFor("cliente"),
+    {
+      type: "group",
+      label: "Pagos",
+      icon: CreditCard,
+      feature: "pagos",
+      children: [
+        { type: "item", label: "Realizar pago", to: "#", icon: PackagePlus },
+        { type: "item", label: "Historial de pagos", to: "#", icon: ListChecks },
+      ],
+    },
+    { type: "item", label: "Soporte", to: "#", icon: LifeBuoy },
+    { type: "item", label: "Configuración", to: "#", icon: Settings },
   ],
 };
 
-/** Devuelve los ítems visibles para el rol, considerando feature flags */
-export function getNavForRole(role: Role): NavItem[] {
-  const items = NAV_BY_ROLE[role] ?? NAV_BY_ROLE.cliente;
-  return items.filter(it => !it.feature || FEATURE_FLAGS[it.feature] === true);
+// Aplica feature flags a grupos y a items internos
+export function getNavForRole(role: Role): NavNode[] {
+  const nodes = NAV_BY_ROLE[role] ?? NAV_BY_ROLE.cliente;
+  const on = (f?: string) => (f ? FEATURE_FLAGS[f] === true : true);
+
+  return nodes
+    .filter(n => on(n.feature))
+    .map(n => {
+      if (n.type === "group") {
+        const children = n.children.filter(c => on(c.feature));
+        return { ...n, children };
+      }
+      return n;
+    })
+    .filter(n => (n.type === "group" ? n.children.length > 0 : true));
 }
