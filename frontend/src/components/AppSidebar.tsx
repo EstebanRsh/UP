@@ -14,43 +14,38 @@ import {
   type NavItem,
   type NavGroup,
 } from "../config/nav";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-/** ================== AJUSTES RÁPIDOS ================== */
-const GRACE_MS = 400; // ⏱️ retardo antes de iniciar ocultado del flyout
-const IN_ANIM_MS = 180; // 🎬 duración animación de ENTRADA
-const OUT_ANIM_MS = 240; // 🎬 duración animación de SALIDA
-const CROSS_MS = 120; // 🔁 “gracia” al salir del panel para volver al icono
-/** ===================================================== */
+/** ====== tiempos/animación flyout desktop ====== */
+const GRACE_MS = 400;
+const IN_ANIM_MS = 180;
+const OUT_ANIM_MS = 240;
+const CROSS_MS = 120;
+/** ============================================= */
 
-/**
- * Sidebar oscura (siempre w-16) con submenús flotantes a la derecha.
- * Sin tooltips nativos (quitamos title); usamos aria-label para accesibilidad.
- */
-
-type FlyoutState = {
-  label: string | null; // grupo abierto
-  top: number; // Y relativo al aside
-};
-
+type FlyoutState = { label: string | null; top: number };
 type Phase = "idle" | "enter" | "exit";
 
-export default function AppSidebar() {
+export default function AppSidebar({
+  mobileOpen = false,
+  onClose,
+}: {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}) {
   const { user } = useAuth();
   const role: Role = (user?.role as Role) ?? "cliente";
   const { pathname } = useLocation();
-
   const items = useMemo(() => getNavForRole(role), [role]);
 
+  /** ---------- DESKTOP (md+) con flyout ---------- */
   const asideRef = useRef<HTMLDivElement>(null);
   const flyoutRef = useRef<HTMLDivElement>(null);
-
   const [flyout, setFlyout] = useState<FlyoutState>({ label: null, top: 0 });
   const [phase, setPhase] = useState<Phase>("idle");
   const [overFlyout, setOverFlyout] = useState(false);
   const [overGroup, setOverGroup] = useState(false);
-
   const closeTimer = useRef<number | undefined>(undefined);
   const animTimer = useRef<number | undefined>(undefined);
 
@@ -64,19 +59,16 @@ export default function AppSidebar() {
       animTimer.current = undefined;
     }
   }
-
   function openFlyout(group: NavGroup, elem: HTMLElement) {
     clearTimers();
     setOverGroup(true);
     const asideRect = asideRef.current?.getBoundingClientRect();
     const btnRect = elem.getBoundingClientRect();
     const top = asideRect ? Math.max(8, btnRect.top - asideRect.top - 6) : 8;
-
     setFlyout({ label: group.label, top });
     setPhase("enter");
     requestAnimationFrame(() => setPhase("idle"));
   }
-
   function scheduleClose(delay = GRACE_MS) {
     clearTimers();
     closeTimer.current = window.setTimeout(() => {
@@ -89,7 +81,6 @@ export default function AppSidebar() {
       }
     }, delay);
   }
-
   useEffect(() => {
     function handlePointerMove(e: PointerEvent) {
       const t = e.target as Node;
@@ -118,7 +109,7 @@ export default function AppSidebar() {
     };
   }, []);
 
-  function Item({ item }: { item: NavItem }) {
+  function DItem({ item }: { item: NavItem }) {
     const active =
       item.to !== "#" &&
       (pathname === item.to || pathname.startsWith(item.to + "/"));
@@ -156,8 +147,7 @@ export default function AppSidebar() {
       </Link>
     );
   }
-
-  function Group({ group }: { group: NavGroup }) {
+  function DGroup({ group }: { group: NavGroup }) {
     const childActive = group.children.some(
       (c) =>
         c.to !== "#" && (pathname === c.to || pathname.startsWith(c.to + "/"))
@@ -167,7 +157,6 @@ export default function AppSidebar() {
     const btnStyle = childActive
       ? "bg-white/10 text-white"
       : "text-slate-200/90 hover:bg-white/10 hover:text-white";
-
     return (
       <div
         className="relative"
@@ -193,8 +182,7 @@ export default function AppSidebar() {
       </div>
     );
   }
-
-  function FlyoutPanel({ group }: { group: NavGroup }) {
+  function DFlyout({ group }: { group: NavGroup }) {
     const style: React.CSSProperties = {
       top: flyout.top,
       transitionTimingFunction: "ease",
@@ -210,15 +198,10 @@ export default function AppSidebar() {
           : "translateX(0px)",
       filter: phase === "exit" ? "blur(2px)" : "none",
     };
-
     return (
       <div
         ref={flyoutRef}
-        className={[
-          "absolute left-full z-30 w-56 overflow-hidden rounded-lg",
-          "border border-white/10 bg-slate-900/95 text-slate-100 shadow-xl backdrop-blur",
-          "transition-all",
-        ].join(" ")}
+        className="absolute left-full z-30 w-56 overflow-hidden rounded-lg border border-white/10 bg-slate-900/95 text-slate-100 shadow-xl backdrop-blur transition-all"
         style={style}
         onMouseEnter={() => {
           clearTimers();
@@ -243,14 +226,12 @@ export default function AppSidebar() {
               ? "bg-white/10 text-white"
               : "text-slate-200/90 hover:bg-white/10 hover:text-white";
             const disabled = "cursor-not-allowed text-slate-400/60";
-
             const Content = (
               <>
                 <child.icon className="h-4 w-4" />
                 <span className="whitespace-nowrap">{child.label}</span>
               </>
             );
-
             return child.to === "#" ? (
               <div key={child.label} className={`${row} ${disabled}`}>
                 {Content}
@@ -276,37 +257,118 @@ export default function AppSidebar() {
       | NavGroup
       | undefined);
 
-  return (
-    <aside
-      ref={asideRef}
-      className="
-        relative z-20 flex w-16 shrink-0 flex-col items-stretch
-        border-r border-black/10 bg-slate-900 p-2 text-slate-200
-      "
-      style={{ minHeight: "calc(100vh - 48px)" }} /* 48px = h-12 del header */
-      onMouseLeave={() => {
-        setOverGroup(false);
-        scheduleClose();
-      }}
-    >
-      <nav className="flex flex-col gap-1">
-        {items.map((node: NavNode, idx) =>
-          node.type === "group" ? (
-            <div key={`${node.label}-${idx}`}>
-              <Group group={node} />
-              {currentGroup && currentGroup.label === node.label && (
-                <FlyoutPanel group={currentGroup} />
-              )}
-            </div>
-          ) : (
-            <Item key={`${node.label}-${idx}`} item={node} />
-          )
-        )}
-      </nav>
+  /** ---------- MOBILE (<md) drawer ---------- */
+  const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
+  function toggle(label: string) {
+    setOpenMap((m) => ({ ...m, [label]: !m[label] }));
+  }
 
-      <div className="mt-auto pt-2">
-        <div className="h-px bg-white/10" />
+  function MItem({ item }: { item: NavItem }) {
+    const active =
+      item.to !== "#" &&
+      (pathname === item.to || pathname.startsWith(item.to + "/"));
+    const row = "flex items-center gap-3 rounded-md px-3 py-2 text-sm";
+    const enabled = active
+      ? "bg-white/10 text-white"
+      : "text-slate-200/90 hover:bg-white/10 hover:text-white";
+    const disabled = "cursor-not-allowed text-slate-400/60";
+    const Content = (
+      <>
+        <item.icon className="h-4 w-4" />
+        <span>{item.label}</span>
+      </>
+    );
+    if (item.to === "#")
+      return <div className={`${row} ${disabled}`}>{Content}</div>;
+    return (
+      <Link to={item.to} className={`${row} ${enabled}`} onClick={onClose}>
+        {Content}
+      </Link>
+    );
+  }
+  function MGroup({ group }: { group: NavGroup }) {
+    const isOpen = !!openMap[group.label];
+    return (
+      <div>
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-200/90 hover:bg-white/10 hover:text-white"
+          onClick={() => toggle(group.label)}
+          aria-expanded={isOpen}
+        >
+          <group.icon className="h-4 w-4" />
+          <span className="flex-1 text-left">{group.label}</span>
+          <ChevronDown
+            className={`h-4 w-4 transition-transform ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+        <div
+          className="overflow-hidden pl-6"
+          style={{
+            maxHeight: isOpen ? 1000 : 0,
+            transition: "max-height 200ms ease",
+          }}
+        >
+          <div className="mt-1 mb-2 space-y-1">
+            {group.children.map((c) => (
+              <MItem key={c.label} item={c} />
+            ))}
+          </div>
+        </div>
       </div>
-    </aside>
+    );
+  }
+
+  return (
+    <>
+      {/* Desktop: barra angosta con flyout */}
+      <aside
+        ref={asideRef}
+        className="relative z-20 hidden w-16 shrink-0 flex-col items-stretch border-r border-black/10 bg-slate-900 p-2 text-slate-200 md:flex"
+        style={{ minHeight: "calc(100vh - 48px)" }}
+        onMouseLeave={() => {
+          setOverGroup(false);
+          scheduleClose();
+        }}
+      >
+        <nav className="flex flex-col gap-1">
+          {items.map((node: NavNode, idx) =>
+            node.type === "group" ? (
+              <div key={`${node.label}-${idx}`}>
+                <DGroup group={node} />
+                {currentGroup && currentGroup.label === node.label && (
+                  <DFlyout group={currentGroup} />
+                )}
+              </div>
+            ) : (
+              <DItem key={`${node.label}-${idx}`} item={node} />
+            )
+          )}
+        </nav>
+        <div className="mt-auto pt-2">
+          <div className="h-px bg-white/10" />
+        </div>
+      </aside>
+
+      {/* Mobile: drawer deslizante debajo de la topbar */}
+      <div
+        className={`fixed top-12 bottom-0 left-0 z-40 w-64 bg-slate-900 text-slate-100 shadow-2xl transition-transform md:hidden
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+        role="dialog"
+        aria-modal="true"
+      >
+        <nav className="h-full overflow-y-auto p-3 space-y-1">
+          {items.map((node: NavNode, idx) =>
+            node.type === "group" ? (
+              <MGroup key={`${node.label}-${idx}`} group={node} />
+            ) : (
+              <MItem key={`${node.label}-${idx}`} item={node} />
+            )
+          )}
+        </nav>
+      </div>
+    </>
   );
 }
