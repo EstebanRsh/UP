@@ -1,9 +1,3 @@
-/**
- * App (routing)
- * Define rutas públicas (/login) y protegidas por rol usando <Protected />.
- * Cada dashboard (/admin | /operador | /cliente) se monta dentro del layout protegido.
- */
-
 import { Routes, Route, Navigate } from "react-router-dom";
 import Protected from "./components/Protected";
 import Login from "./pages/Login";
