@@ -17,11 +17,8 @@ export default function Protected({
   return (
     <>
       <AppHeader />
-      <div className="flex min-h-[calc(100vh-56px)]">
-        {/* Lateral siempre oscuro */}
-        <AppSidebar />
-
-        {/* Contenido central: ÚNICO que reacciona al modo oscuro */}
+      <div className="flex min-h-[calc(100vh-48px)]">
+        <AppSidebar /> {/* Lateral oscuro fijo */}
         <main className="flex-1 bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100">
           <div className="mx-auto max-w-6xl p-6">
             <Outlet />
