@@ -1,12 +1,12 @@
+// src/components/Protected.tsx
 /**
- * Protected Layout
- * - Topbar fija (h-12 = 48px)
- * - Sidebar fija tipo "rail" (64px) + flyout al pasar el mouse
- * - Solo el contenido central scrollea (main con margin-left = 64px y margin-top = 48px)
- * - Responsive: en <md se oculta el rail por simplicidad (puede añadirse drawer si querés)
+ * Protected Layout con control de roles
+ * - Acepta props `roles?: ("gerente"|"operador"|"cliente")[]`
+ * - Si no hay token o el rol no está en `roles`, redirige a /login
+ * - Topbar fija + sidebar fija + contenido con scroll
  */
 
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
 import AppHeader from "./AppHeader";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -17,9 +17,12 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+type Role = "gerente" | "operador" | "cliente";
+type ProtectedProps = { roles?: Role[] };
+
 const RAIL_W = 64; // px (w-16)
 const TOPBAR_H = 48; // px (h-12)
-const HIDE_DELAY = 350; // ms para ocultar flyout después de salir con el mouse
+const HIDE_DELAY = 350; // ms
 
 type MenuKey = "clientes" | "pagos" | "planes" | "config";
 
@@ -32,7 +35,7 @@ const MENU: Record<
     icon: Users,
     items: [
       { label: "Nuevo cliente", to: "#" }, // placeholder
-      { label: "Lista de clientes", to: "/operador" }, // dashboard operador
+      { label: "Lista de clientes", to: "/clientes" }, // 👈 ruta compartida gerente/operador
     ],
   },
   pagos: {
@@ -61,14 +64,29 @@ const MENU: Record<
   },
 };
 
-export default function Protected() {
+export default function Protected({ roles }: ProtectedProps) {
   const location = useLocation();
 
-  // control del flyout (qué menú está activo bajo el puntero)
+  // --- Auth & roles ---
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const roleStr =
+    typeof window !== "undefined" ? localStorage.getItem("role") : null;
+  const currentRole = (roleStr as Role | null) ?? null;
+
+  if (!token) {
+    // no autenticado
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+  if (roles && currentRole && !roles.includes(currentRole)) {
+    // autenticado pero sin permiso
+    return <Navigate to="/login" replace />;
+  }
+
+  // --- Flyout sidebar ---
   const [openKey, setOpenKey] = useState<MenuKey | null>(null);
   const hideTimer = useRef<number | null>(null);
 
-  // cancela/agenda ocultar flyout
   const cancelHide = () => {
     if (hideTimer.current) {
       window.clearTimeout(hideTimer.current);
@@ -80,7 +98,6 @@ export default function Protected() {
     hideTimer.current = window.setTimeout(() => setOpenKey(null), HIDE_DELAY);
   };
 
-  // al cambiar de ruta, cerramos flyout
   useEffect(() => {
     setOpenKey(null);
   }, [location.pathname]);
@@ -92,7 +109,7 @@ export default function Protected() {
         <AppHeader />
       </div>
 
-      {/* Sidebar (rail) fija: md+ */}
+      {/* Sidebar fija (rail) */}
       <aside
         className="fixed left-0 top-12 z-30 hidden h-[calc(100vh-48px)] w-16 border-r border-slate-200 bg-slate-900 text-slate-100 md:block dark:border-slate-800 dark:bg-slate-900"
         onMouseLeave={scheduleHide}
@@ -103,8 +120,8 @@ export default function Protected() {
             const Icon = MENU[key].icon;
             const active =
               key === "clientes" &&
-              (location.pathname.startsWith("/operador") ||
-                location.pathname.startsWith("/admin"));
+              (location.pathname.startsWith("/clientes") ||
+                location.pathname.startsWith("/operador")); // compat
             return (
               <button
                 key={key}
@@ -124,7 +141,7 @@ export default function Protected() {
         </nav>
       </aside>
 
-      {/* Flyout (panel expandido) */}
+      {/* Flyout expandido */}
       {openKey && (
         <div
           className="fixed left-16 top-12 z-40 hidden h-[calc(100vh-48px)] md:block"
@@ -161,13 +178,10 @@ export default function Protected() {
         </div>
       )}
 
-      {/* Contenido principal: margen para topbar + rail fijos */}
+      {/* Contenido: deja margen para topbar/rail fijos */}
       <main
         className="relative px-4 pb-10 pt-4 md:px-6 md:pt-6"
-        style={{
-          marginLeft: RAIL_W,
-          marginTop: TOPBAR_H,
-        }}
+        style={{ marginLeft: RAIL_W, marginTop: TOPBAR_H }}
       >
         <Outlet />
       </main>
