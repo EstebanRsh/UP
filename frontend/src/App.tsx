@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Gerente from "./pages/dashboard/Gerente";
 import Operador from "./pages/dashboard/Operador";
 import Cliente from "./pages/dashboard/Cliente";
+import ClienteDetalle from "./pages/clientes/ClienteDetalle";
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
 
       <Route element={<Protected roles={["operador"]} />}>
         <Route path="/operador" element={<Operador />} />
+        <Route path="/operador/clientes/:id" element={<ClienteDetalle />} />
       </Route>
 
       <Route element={<Protected roles={["cliente"]} />}>

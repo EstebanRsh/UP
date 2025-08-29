@@ -1,60 +1,108 @@
-/**
- * Dashboard · Operador
- * Enfoque operativo: trabajo diario sobre clientes, altas y tareas técnicas.
- *
- * Contenido:
- *  - KPIs (Tickets abiertos, Altas pendientes, Cortes programados, SLA).
- *  - Búsqueda rápida de clientes (filtro local de ejemplo).
- *  - Acciones: Alta de cliente, Programar visita (placeholders).
- *
- * Estado actual:
- *  - MOCK para resultados de búsqueda; pensado para migrar a /clientes/search.
- *
- * Diseño:
- *  - Componentes sobrios, tabla responsive y controles accesibles.
- *  - Borde superior celeste en bloques, consistente con la identidad.
- *
- * Próximos pasos sugeridos:
- *  - Integrar paginación/orden con backend.
- *  - Agregar toasts y validaciones al crear tareas/altas.
- *  - Estados vacíos y manejo de permisos por rol.
- */
-
 // src/pages/dashboard/Operador.tsx
 /**
- * Dashboard · Operador
- * Ahora con búsqueda REAL contra el backend.
- * - Escribe 2+ caracteres para buscar por nombre o documento.
- * - Con 0–1 caracteres muestra una lista inicial (limit 20).
+ * Dashboard · Operador (paginación real + UX)
+ * - Mantiene el scroll al paginar (no salta al tope).
+ * - Overlay "Cargando…" con spinner para evitar parpadeos.
+ * - Botón "Acciones" por fila → navega a detalle del cliente.
  */
 
 import KpiCard from "../../components/KpiCard";
-import { ClipboardList, UserPlus, Wrench, Clock, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { listClientes, searchClientes, type Cliente } from "../../lib/clientes";
+import {
+  ClipboardList,
+  UserPlus,
+  Wrench,
+  Clock,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
+import {
+  searchClientesPaged,
+  type ClienteListItem,
+  type ClienteSearchResponse,
+} from "../../lib/clientes";
+import { Link } from "react-router-dom";
 
 const CEL = "#0DA3E3";
 const CEL_DARK = "#087BBE";
 
-export default function Operador() {
-  // KPIs placeholder (igual que antes)
-  const [q, setQ] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [error, setError] = useState<string | null>(null);
+type Params = {
+  page: number;
+  limit: number;
+  buscar: string;
+  estado: "" | "activo" | "inactivo";
+  ordenar_por: "id" | "apellido" | "nro_cliente" | "creado_en";
+  orden: "asc" | "desc";
+  activos_primero: boolean;
+};
 
-  // cargar lista inicial
+export default function Operador() {
+  const [params, setParams] = useState<Params>({
+    page: 1,
+    limit: 20,
+    buscar: "",
+    estado: "",
+    ordenar_por: "id",
+    orden: "asc",
+    activos_primero: false,
+  });
+
+  const [debouncedBuscar, setDebouncedBuscar] = useState(params.buscar);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedBuscar(params.buscar), 350);
+    return () => clearTimeout(t);
+  }, [params.buscar]);
+
+  const [loading, setLoading] = useState(false);
+  const [resp, setResp] = useState<ClienteSearchResponse | null>(null);
+
+  // Evitar salto de scroll al cambiar página/filtros
+  const lastScrollYRef = useRef<number>(0);
+  const shouldRestoreScrollRef = useRef(false);
+  function rememberScrollAnd(fn: () => void) {
+    lastScrollYRef.current = window.scrollY;
+    shouldRestoreScrollRef.current = true;
+    fn();
+  }
+  useEffect(() => {
+    if (!loading && shouldRestoreScrollRef.current) {
+      shouldRestoreScrollRef.current = false;
+      window.scrollTo({ top: lastScrollYRef.current, behavior: "auto" });
+    }
+  }, [loading]);
+
+  // Carga de datos
   useEffect(() => {
     let alive = true;
     (async () => {
       setLoading(true);
       try {
-        const data = await listClientes(20);
-        if (alive) setClientes(data);
+        const data = await searchClientesPaged({
+          page: params.page,
+          limit: params.limit,
+          buscar: debouncedBuscar || undefined,
+          estado: params.estado || undefined,
+          ordenar_por: params.ordenar_por,
+          orden: params.orden,
+          activos_primero: params.activos_primero,
+        });
+        if (alive) setResp(data);
       } catch (e: any) {
-        setError(e?.message || "No se pudo obtener clientes.");
-        toast.error(e?.message || "No se pudo obtener clientes.");
+        if (alive) {
+          toast.error(e?.message || "No se pudo obtener clientes.");
+          setResp({
+            items: [],
+            page: params.page,
+            limit: params.limit,
+            total_count: 0,
+            total_pages: 1,
+            has_prev: false,
+            has_next: false,
+          });
+        }
       } finally {
         if (alive) setLoading(false);
       }
@@ -62,54 +110,37 @@ export default function Operador() {
     return () => {
       alive = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    params.page,
+    params.limit,
+    debouncedBuscar,
+    params.estado,
+    params.ordenar_por,
+    params.orden,
+    params.activos_primero,
+  ]);
 
-  // búsqueda con debounce
-  useEffect(() => {
-    let alive = true;
-    const term = q.trim();
-    const handler = setTimeout(async () => {
-      if (!alive) return;
-      if (term.length < 2) {
-        // con término corto, recarga lista corta
-        try {
-          setLoading(true);
-          const data = await listClientes(20);
-          if (alive) setClientes(data);
-        } catch (e: any) {
-          if (alive) {
-            setError(e?.message || "Error al listar clientes.");
-            toast.error(e?.message || "Error al listar clientes.");
-          }
-        } finally {
-          if (alive) setLoading(false);
-        }
-        return;
-      }
-      try {
-        setLoading(true);
-        const data = await searchClientes(term);
-        if (alive) {
-          setClientes(data);
-          setError(null);
-        }
-      } catch (e: any) {
-        if (alive) {
-          setError(e?.message || "Error en la búsqueda.");
-          toast.error(e?.message || "Error en la búsqueda.");
-        }
-      } finally {
-        if (alive) setLoading(false);
-      }
-    }, 350); // debounce
+  const rows: ClienteListItem[] = useMemo(() => resp?.items ?? [], [resp]);
 
-    return () => {
-      alive = false;
-      clearTimeout(handler);
-    };
-  }, [q]);
+  function update<K extends keyof Params>(key: K, value: Params[K]) {
+    setParams((p) => ({
+      ...p,
+      page:
+        key === "buscar" ||
+        key === "estado" ||
+        key === "limit" ||
+        key === "ordenar_por" ||
+        key === "orden" ||
+        key === "activos_primero"
+          ? 1
+          : p.page,
+      [key]: value,
+    }));
+  }
 
-  const rows = useMemo(() => clientes ?? [], [clientes]);
+  const canPrev = !!resp?.has_prev;
+  const canNext = !!resp?.has_next;
 
   return (
     <div className="space-y-6">
@@ -136,56 +167,116 @@ export default function Operador() {
         <KpiCard title="SLA hoy" value="96%" icon={Clock} hint="Objetivo 98%" />
       </div>
 
-      {/* Búsqueda rápida */}
+      {/* Filtros + tabla */}
       <div
         className="rounded-xl border bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
         style={{ borderTopWidth: 4, borderTopColor: CEL }}
       >
-        <h3 className="mb-3 text-sm font-semibold">
-          Búsqueda rápida de clientes
-        </h3>
+        <h3 className="mb-3 text-sm font-semibold">Clientes</h3>
 
-        <div className="relative mb-3">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-            <Search className="h-4 w-4" />
-          </span>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Nombre o documento…"
-            className="w-full rounded-lg border bg-white pl-9 pr-3 py-2 outline-none transition focus:ring-2 dark:border-slate-700 dark:bg-slate-950/50"
-            style={{ borderColor: "#cbd5e1" }}
-          />
+        {/* Filtros */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Buscar */}
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <Search className="h-4 w-4" />
+            </span>
+            <input
+              value={params.buscar}
+              onChange={(e) => update("buscar", e.target.value)}
+              placeholder="Nombre, apellido o documento…"
+              className="w-full rounded-lg border bg-white pl-9 pr-3 py-2 outline-none transition focus:ring-2 dark:border-slate-700 dark:bg-slate-950/50"
+              style={{ borderColor: "#cbd5e1" }}
+            />
+          </div>
+
+          {/* Estado */}
+          <select
+            value={params.estado}
+            onChange={(e) =>
+              update("estado", e.target.value as Params["estado"])
+            }
+            className="rounded-lg border bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950/50"
+          >
+            <option value="">Todos los estados</option>
+            <option value="activo">Activos</option>
+            <option value="inactivo">Inactivos</option>
+          </select>
+
+          {/* Orden */}
+          <div className="flex gap-2">
+            <select
+              value={params.ordenar_por}
+              onChange={(e) =>
+                update("ordenar_por", e.target.value as Params["ordenar_por"])
+              }
+              className="flex-1 rounded-lg border bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950/50"
+            >
+              <option value="id">ID</option>
+              <option value="apellido">Apellido</option>
+              <option value="nro_cliente">Nro. cliente</option>
+              <option value="creado_en">Creado</option>
+            </select>
+            <select
+              value={params.orden}
+              onChange={(e) =>
+                update("orden", e.target.value as Params["orden"])
+              }
+              className="w-28 rounded-lg border bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950/50"
+            >
+              <option value="asc">Asc</option>
+              <option value="desc">Desc</option>
+            </select>
+          </div>
+
+          {/* Límite + activos primero */}
+          <div className="flex items-center justify-between gap-2">
+            <select
+              value={params.limit}
+              onChange={(e) =>
+                update("limit", Number(e.target.value) as Params["limit"])
+              }
+              className="rounded-lg border bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950/50"
+            >
+              {[10, 20, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n} por página
+                </option>
+              ))}
+            </select>
+
+            <label className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <input
+                type="checkbox"
+                checked={params.activos_primero}
+                onChange={(e) => update("activos_primero", e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 focus:ring-0 dark:border-slate-700"
+                style={{ accentColor: CEL }}
+              />
+              Activos primero
+            </label>
+          </div>
         </div>
 
-        {/* Tabla */}
-        <div className="overflow-x-auto">
+        {/* Tabla + overlay */}
+        <div className="relative mt-4 overflow-x-auto min-h-[260px]">
           <table className="min-w-full text-sm">
             <thead className="text-left text-slate-500 dark:text-slate-400">
               <tr>
-                <th className="py-2">Nombre</th>
+                <th className="py-2">#</th>
+                <th>Nombre</th>
                 <th>Documento</th>
                 <th>Email</th>
                 <th>Teléfono</th>
                 <th>Estado</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {loading && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="py-6 text-center text-slate-500 dark:text-slate-400"
-                  >
-                    Cargando…
-                  </td>
-                </tr>
-              )}
-
               {!loading && rows.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={7}
                     className="py-6 text-center text-slate-500 dark:text-slate-400"
                   >
                     Sin resultados
@@ -199,29 +290,120 @@ export default function Operador() {
                     key={c.id}
                     className="border-t border-slate-100 dark:border-slate-800"
                   >
-                    <td className="py-2">{c.nombre}</td>
+                    <td className="py-2">{c.nro_cliente}</td>
+                    <td>
+                      {c.apellido ? `${c.apellido}, ${c.nombre}` : c.nombre}
+                    </td>
                     <td>{c.documento}</td>
                     <td>{c.email ?? "-"}</td>
                     <td>{c.telefono ?? "-"}</td>
                     <td>
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          c.activo
+                          c.estado === "activo"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200"
                             : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200"
                         }`}
                       >
-                        {c.activo ? "Activo" : "Inactivo"}
+                        {c.estado}
                       </span>
+                    </td>
+                    <td className="text-right">
+                      <Link
+                        to={`/operador/clientes/${c.id}`}
+                        className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs dark:border-slate-700"
+                        title="Ver detalle"
+                      >
+                        Acciones
+                      </Link>
                     </td>
                   </tr>
                 ))}
             </tbody>
           </table>
+
+          {loading && (
+            <div className="absolute inset-0 grid place-items-center bg-white/70 dark:bg-slate-900/60">
+              <div className="flex items-center gap-2 rounded-md px-3 py-2 text-slate-700 dark:text-slate-200">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cargando…
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Acciones */}
-        <div className="mt-3 flex flex-wrap gap-2">
+        {/* Paginador */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div className="text-slate-600 dark:text-slate-300">
+            {resp
+              ? `Página ${resp.page} de ${resp.total_pages} — ${resp.total_count} resultados`
+              : "—"}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!canPrev}
+              onClick={() =>
+                canPrev &&
+                rememberScrollAnd(() =>
+                  setParams((p) => ({ ...p, page: p.page - 1 }))
+                )
+              }
+              className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 ${
+                canPrev
+                  ? "hover:bg-white/10 dark:border-slate-700"
+                  : "opacity-50 dark:border-slate-800"
+              }`}
+              title="Anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Anterior
+            </button>
+
+            <input
+              type="number"
+              min={1}
+              max={Math.max(1, resp?.total_pages ?? 1)}
+              value={params.page}
+              onChange={(e) =>
+                rememberScrollAnd(() =>
+                  setParams((p) => ({
+                    ...p,
+                    page: Math.min(
+                      Math.max(1, Number(e.target.value || 1)),
+                      resp?.total_pages ?? 1
+                    ),
+                  }))
+                )
+              }
+              className="w-16 rounded-lg border bg-white px-2 py-1.5 text-center dark:border-slate-700 dark:bg-slate-950/50"
+            />
+
+            <button
+              type="button"
+              disabled={!canNext}
+              onClick={() =>
+                canNext &&
+                rememberScrollAnd(() =>
+                  setParams((p) => ({ ...p, page: p.page + 1 }))
+                )
+              }
+              className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 ${
+                canNext
+                  ? "hover:bg-white/10 dark:border-slate-700"
+                  : "opacity-50 dark:border-slate-800"
+              }`}
+              title="Siguiente"
+            >
+              Siguiente
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Acciones rápidas (placeholders) */}
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
             className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white shadow-sm"
             style={{
