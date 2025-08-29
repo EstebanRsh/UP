@@ -144,9 +144,9 @@ export default function Login() {
           <p className="mt-4 max-w-md text-sm text-slate-600 dark:text-slate-300">
             Somos un proveedor de internet que acerca conectividad confiable a{" "}
             <strong>zonas urbanas y rurales</strong>. Operamos en{" "}
-            <strong>Bovril</strong> y <strong>Avigdor</strong>, ampliando
-            nuestra cobertura para que más personas y negocios tengan acceso a
-            servicios estables, seguros y a un precio justo.
+            <strong>------</strong> y <strong>-----</strong>, ampliando nuestra
+            cobertura para que más personas y negocios tengan acceso a servicios
+            estables, seguros y a un precio justo.
           </p>
 
           <ul className="mt-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
