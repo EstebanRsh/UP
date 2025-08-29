@@ -1,3 +1,9 @@
+/**
+ * Protected
+ * Guard de rutas: si no hay usuario => redirige a /login; si hay `roles`, valida el rol.
+ * Layout de páginas protegidas: AppHeader (celeste) + AppSidebar (oscura) + <Outlet />.
+ * Solo el contenido central reacciona al dark mode; topbar y sidebar quedan fijos.
+ */
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import AppHeader from "./AppHeader";

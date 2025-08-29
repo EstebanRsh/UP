@@ -1,3 +1,9 @@
+/**
+ * Login
+ * Formulario documento + password. Usa AuthContext.login, muestra toasts y
+ * redirige al dashboard según el rol. Estilizado con la paleta celeste de marca.
+ */
+
 import { useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";

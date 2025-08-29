@@ -1,3 +1,9 @@
+/**
+ * Dashboard · Operador
+ * Contenedor base para tareas operativas (altas/bajas/búsquedas de clientes).
+ * (Lugar para atajos y tablas de trabajo diario).
+ */
+
 export default function Operador() {
   return (
     <div className="p-6">

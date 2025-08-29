@@ -1,3 +1,9 @@
+/**
+ * Dashboard · Gerente
+ * Contenedor base para accesos a gestión de usuarios, clientes y reportes.
+ * (Lugar para widgets y métricas del rol gerente).
+ */
+
 export default function Gerente() {
   return (
     <div className="mx-auto max-w-6xl p-6">

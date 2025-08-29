@@ -1,3 +1,10 @@
+/**
+ * ThemeToggle
+ * Cambia entre modo claro/oscuro agregando/removiendo la clase .dark en <html>.
+ * Persiste la preferencia en localStorage y respeta prefers-color-scheme al iniciar.
+ * Prop `variant`: "default" (para fondos claros) | "onPrimary" (para la topbar celeste).
+ */
+
 import { useEffect, useState } from "react";
 import { Sun, Moon } from "lucide-react";
 

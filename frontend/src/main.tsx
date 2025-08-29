@@ -1,3 +1,8 @@
+/**
+ * Entry del frontend
+ * Monta BrowserRouter + AuthProvider + App y aplica estilos de Tailwind (index.css).
+ */
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";

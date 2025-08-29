@@ -1,3 +1,9 @@
+/**
+ * Dashboard · Cliente
+ * Contenedor base para ver estado de cuenta, pagos y soporte.
+ * (Lugar para tarjetas/resumen del cliente autenticado).
+ */
+
 export default function Cliente() {
   return (
     <div className="mx-auto max-w-6xl p-6">

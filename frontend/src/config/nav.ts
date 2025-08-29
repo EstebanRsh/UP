@@ -1,3 +1,10 @@
+/**
+ * Configuración de navegación por rol.
+ * NAV_BY_ROLE define los ítems visibles para cada rol.
+ * FEATURE_FLAGS permite habilitar/deshabilitar módulos sin tocar el componente.
+ * getNavForRole(role) devuelve la lista final que usa AppSidebar.
+ */
+
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, Users, CreditCard, BarChart3, Settings, User, LifeBuoy

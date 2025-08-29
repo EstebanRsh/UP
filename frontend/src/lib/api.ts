@@ -1,3 +1,10 @@
+/**
+ * API client mínimo del frontend.
+ * - login({ documento|email, password }): POST /users/login, guarda token (localStorage).
+ * - me(): GET /me con Authorization Bearer.
+ * - authHeader(): devuelve headers con el token para peticiones autenticadas.
+ */
+
 // src/lib/api.ts
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 

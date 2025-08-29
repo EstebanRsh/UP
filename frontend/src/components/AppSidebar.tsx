@@ -1,3 +1,10 @@
+/**
+ * AppHeader
+ * Barra superior fija SIEMPRE celeste (no cambia con modo oscuro).
+ * Contiene: logo + nombre de la empresa, ThemeToggle, botón de Configuración y Cerrar sesión.
+ * El logo linkea al “home” según el rol (gerente/operador/cliente).
+ */
+
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getNavForRole, type Role } from "../config/nav";

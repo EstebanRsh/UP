@@ -1,3 +1,9 @@
+/**
+ * AuthContext
+ * Estado global de autenticación: { user, loading, login, logout }.
+ * Hidrata el usuario inicial llamando /me si hay token.
+ * Centraliza logout (remueve token y limpia estado).
+ */
 import { createContext, useContext, useEffect, useState } from "react";
 import { login as apiLogin, me as apiMe } from "../lib/api";
 
