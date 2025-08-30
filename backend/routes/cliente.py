@@ -5,8 +5,7 @@ from typing import Optional, List, Literal
 
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, EmailStr
-
+from pydantic import BaseModel, Field, EmailStr, validator  # <- validator
 from sqlalchemy.orm import Session
 from sqlalchemy import asc, desc, or_, case, func
 
@@ -42,6 +41,23 @@ class ClienteUpdate(BaseModel):
     email: Optional[EmailStr] = None
     direccion: Optional[str] = None
     estado: Optional[EstadoClienteEnum] = None
+
+    # v1: convierte "" -> None para campos string (evita 422 por EmailStr/str vacíos)
+    @validator("nombre", "apellido", "telefono", "email", "direccion", pre=True)
+    def empty_to_none(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
+
+    # documento: deja solo dígitos; si queda vacío -> None
+    @validator("documento", pre=True)
+    def normalize_doc(cls, v):
+        if v is None:
+            return None
+        s = "".join(c for c in str(v) if c.isdigit())
+        return s or None
 
 
 class ClienteCursorRequest(BaseModel):
@@ -154,14 +170,6 @@ def crear_cliente(req: Request, body: ClienteCreate, db: Session = Depends(get_d
 def listar_clientes(
     req: Request, body: ClienteSearchRequest, db: Session = Depends(get_db)
 ):
-    """
-    Lista clientes con paginación por página/limit, búsqueda y filtros.
-    Búsqueda:
-    - Si 'buscar' es numérico: documento CONTIENE el término (LIKE '%term%').
-    - Si tiene letras: nombre o apellido que CONTIENEN el término (insensible a acentos y mayúsculas).
-    Filtros: estado, creado_desde/hasta (inclusivos).
-    Orden: id|apellido|nro_cliente|creado_en + asc|desc; opcional activos_primero.
-    """
     guard = require_roles(req.headers, {"gerente", "operador"})
     if guard:
         return guard
@@ -242,7 +250,6 @@ def listar_clientes(
             "has_prev": body.page > 1,
             "has_next": body.page < total_pages,
         }
-
     except HTTPException:
         raise
     except Exception:
@@ -251,7 +258,6 @@ def listar_clientes(
 
 @Cliente.get("/all", summary="Listar clientes (admin)")
 def listar_clientes_admin(req: Request, db: Session = Depends(get_db)):
-    """Listado completo para administración. Requiere rol gerente u operador."""
     guard = require_roles(req.headers, {"gerente", "operador"})
     if guard:
         return guard
@@ -285,7 +291,6 @@ def listar_clientes_admin(req: Request, db: Session = Depends(get_db)):
 def clientes_paginados(
     req: Request, body: ClienteCursorRequest, db: Session = Depends(get_db)
 ):
-    """Devuelve clientes paginados por id ascendente. Requiere rol gerente u operador."""
     guard = require_roles(req.headers, {"gerente", "operador"})
     if guard:
         return guard
@@ -321,7 +326,6 @@ def clientes_paginados(
 
 @Cliente.get("/{cliente_id}", summary="Detalle de cliente")
 def obtener_cliente(cliente_id: int, req: Request, db: Session = Depends(get_db)):
-    """Devuelve los datos del cliente por ID. Requiere rol gerente u operador."""
     guard = require_roles(req.headers, {"gerente", "operador"})
     if guard:
         return guard
@@ -356,7 +360,9 @@ def obtener_cliente(cliente_id: int, req: Request, db: Session = Depends(get_db)
 def actualizar_cliente(
     cliente_id: int, body: ClienteUpdate, req: Request, db: Session = Depends(get_db)
 ):
-    """Actualiza datos del cliente y valida duplicados. Requiere rol gerente u operador."""
+    """Actualiza datos del cliente y valida duplicados. Requiere rol gerente u operador.
+    - Si un campo viene como `null`, se interpreta como limpiar (email/telefono).
+    - Campos no presentes: se dejan sin cambios."""
     guard = require_roles(req.headers, {"gerente", "operador"})
     if guard:
         return guard
@@ -367,7 +373,19 @@ def actualizar_cliente(
                 status_code=404, content={"message": "Cliente no encontrado"}
             )
 
-        if body.documento is not None:
+        # detectar qué campos vinieron en el body (v1/v2)
+        try:
+            fields_set = set(body.__fields_set__)  # pydantic v1
+        except Exception:
+            fields_set = set(getattr(body, "model_fields_set", set()))  # pydantic v2
+
+        # Documento (no se permite vaciar porque en DB es NOT NULL)
+        if "documento" in fields_set:
+            if body.documento is None:
+                return JSONResponse(
+                    status_code=400,
+                    content={"message": "Documento no puede quedar vacío"},
+                )
             doc = _norm_doc(body.documento)
             exists = (
                 db.query(ClienteModel)
@@ -380,37 +398,48 @@ def actualizar_cliente(
                 )
             c.documento = doc
 
-        if body.email is not None:
-            exists = (
-                db.query(ClienteModel)
-                .filter(
-                    ClienteModel.email == body.email.lower(),
-                    ClienteModel.id != cliente_id,
+        # Email (permitimos limpiar a NULL si viene explícitamente null)
+        if "email" in fields_set:
+            if body.email:
+                email_l = body.email.lower()
+                exists = (
+                    db.query(ClienteModel)
+                    .filter(
+                        ClienteModel.email == email_l, ClienteModel.id != cliente_id
+                    )
+                    .first()
                 )
-                .first()
-            )
-            if exists:
-                return JSONResponse(
-                    status_code=409, content={"message": "Email ya registrado"}
-                )
-            c.email = body.email.lower()
+                if exists:
+                    return JSONResponse(
+                        status_code=409, content={"message": "Email ya registrado"}
+                    )
+                c.email = email_l
+            else:
+                c.email = None
 
-        if body.nombre is not None:
-            c.nombre = body.nombre
-        if body.apellido is not None:
-            c.apellido = body.apellido
-        if body.telefono is not None:
-            c.telefono = body.telefono
-        if body.direccion is not None:
+        # Teléfono (nullable)
+        if "telefono" in fields_set:
+            c.telefono = body.telefono or None
+
+        # Dirección (NOT NULL en modelo): solo setear si no es None
+        if "direccion" in fields_set and body.direccion is not None:
             c.direccion = body.direccion
-        if body.estado is not None:
+
+        # Nombre/Apellido (NOT NULL): solo setear si no son None
+        if "nombre" in fields_set and body.nombre is not None:
+            c.nombre = body.nombre
+        if "apellido" in fields_set and body.apellido is not None:
+            c.apellido = body.apellido
+
+        # Estado
+        if "estado" in fields_set and body.estado is not None:
             c.estado = body.estado
 
         db.commit()
         db.refresh(c)
         return JSONResponse(status_code=200, content={"message": "Cliente actualizado"})
     except Exception:
-        db.rollback()  # <- faltaban los paréntesis
+        db.rollback()
         return JSONResponse(
             status_code=500, content={"message": "Error al actualizar cliente"}
         )
@@ -418,7 +447,6 @@ def actualizar_cliente(
 
 @Cliente.delete("/{cliente_id}", summary="Inactivar cliente (baja lógica)")
 def eliminar_cliente(cliente_id: int, req: Request, db: Session = Depends(get_db)):
-    """Marca al cliente como inactivo (no se borran registros). Requiere rol gerente u operador."""
     guard = require_roles(req.headers, {"gerente", "operador"})
     if guard:
         return guard

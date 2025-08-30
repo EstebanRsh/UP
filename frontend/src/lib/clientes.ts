@@ -1,34 +1,49 @@
 // src/lib/clientes.ts
-import { authHeader } from "./api";
+/**
+ * Servicios de Clientes (API)
+ * - Búsqueda paginada (POST /clientes/search)
+ * - Detalle (GET /clientes/:id)
+ * - Actualizar (PUT /clientes/:id)
+ */
 
-/** Item que devuelve /clientes/search */
+const BASE_URL: string =
+  (import.meta as any)?.env?.VITE_API_URL || "http://localhost:8000";
+
+function authHeaders(): Record<string, string> {
+  const token =
+    localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function parse<T>(res: Response): Promise<T> {
+  const ct = res.headers.get("content-type") || "";
+  const data = ct.includes("application/json") ? await res.json() : null;
+  if (!res.ok) {
+    const msg =
+      (data && (data.message || data.detail)) || `Error HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data as T;
+}
+
+export type ClienteEstado = "activo" | "inactivo";
+
 export type ClienteListItem = {
   id: number;
   nro_cliente: string;
   nombre: string;
-  apellido: string | null;
+  apellido?: string | null;
   documento: string;
-  telefono: string | null;
-  email: string | null;
-  direccion: string | null;
-  estado: "activo" | "inactivo";
-  creado_en: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  direccion?: string | null;
+  estado: ClienteEstado;
 };
 
-/** Body de /clientes/search (coincide con tu Pydantic) */
-export type ClienteSearchBody = {
-  page: number;
-  limit: number;
-  buscar?: string;
-  estado?: "activo" | "inactivo";
-  creado_desde?: string; // YYYY-MM-DD
-  creado_hasta?: string; // YYYY-MM-DD
-  ordenar_por: "id" | "apellido" | "nro_cliente" | "creado_en";
-  orden: "asc" | "desc";
-  activos_primero: boolean;
+export type ClienteDetail = ClienteListItem & {
+  creado_en?: string | null;
 };
 
-/** Respuesta de /clientes/search */
 export type ClienteSearchResponse = {
   items: ClienteListItem[];
   page: number;
@@ -39,55 +54,58 @@ export type ClienteSearchResponse = {
   has_next: boolean;
 };
 
-const API = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+export type ClienteSearchParams = {
+  page: number;
+  limit: number;
+  buscar?: string;
+  estado?: ClienteEstado | "";
+  ordenar_por: "id" | "apellido" | "nro_cliente" | "creado_en";
+  orden: "asc" | "desc";
+  activos_primero: boolean;
+};
 
-/** Normaliza headers evitando el error de tipo en RequestInit.headers */
-function jsonHeaders(): HeadersInit {
-  const base: Record<string, string> = { "Content-Type": "application/json" };
-  const ah = authHeader() as Record<string, string | undefined>;
-  if (ah?.Authorization) base.Authorization = ah.Authorization;
-  return base;
-}
+export type ClienteUpdateBody = Partial<{
+  nombre: string;
+  apellido: string;
+  documento: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+  estado: ClienteEstado;
+}>;
 
-/** POST /clientes/search — paginado con filtros */
 export async function searchClientesPaged(
-  body: Partial<ClienteSearchBody>
+  params: ClienteSearchParams
 ): Promise<ClienteSearchResponse> {
-  const payload: ClienteSearchBody = {
-    page: body.page ?? 1,
-    limit: body.limit ?? 20,
-    buscar: body.buscar?.trim() || undefined,
-    estado: body.estado,
-    creado_desde: body.creado_desde,
-    creado_hasta: body.creado_hasta,
-    ordenar_por: body.ordenar_por ?? "id",
-    orden: body.orden ?? "asc",
-    activos_primero: body.activos_primero ?? false,
-  };
-
-  const res = await fetch(`${API}/clientes/search`, {
+  const res = await fetch(`${BASE_URL}/clientes/search`, {
     method: "POST",
-    headers: jsonHeaders(),
-    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    } as HeadersInit,
+    body: JSON.stringify(params),
   });
-
-  if (!res.ok) {
-    const msg = await res.text().catch(() => "");
-    throw new Error(msg || `HTTP ${res.status} ${res.statusText}`);
-  }
-  return (await res.json()) as ClienteSearchResponse;
+  return parse<ClienteSearchResponse>(res);
 }
 
-/** GET /clientes/{id} — detalle */
-export type ClienteDetalle = ClienteListItem;
-
-export async function getClienteDetalle(id: number): Promise<ClienteDetalle> {
-  const res = await fetch(`${API}/clientes/${id}`, {
-    headers: jsonHeaders(),
+export async function getCliente(id: number): Promise<ClienteDetail> {
+  const res = await fetch(`${BASE_URL}/clientes/${id}`, {
+    headers: authHeaders() as HeadersInit,
   });
-  if (!res.ok) {
-    const msg = await res.text().catch(() => "");
-    throw new Error(msg || `HTTP ${res.status} ${res.statusText}`);
-  }
-  return (await res.json()) as ClienteDetalle;
+  return parse<ClienteDetail>(res);
+}
+
+export async function updateCliente(
+  id: number,
+  body: ClienteUpdateBody | Record<string, unknown>
+): Promise<{ message: string }> {
+  const res = await fetch(`${BASE_URL}/clientes/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    } as HeadersInit,
+    body: JSON.stringify(body),
+  });
+  return parse<{ message: string }>(res);
 }
