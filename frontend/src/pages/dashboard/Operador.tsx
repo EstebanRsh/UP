@@ -30,7 +30,6 @@ import {
 import { Link } from "react-router-dom";
 
 const CEL = "#0DA3E3";
-const CEL_DARK = "#087BBE";
 
 // ⏱️ Pausa mínima
 const MIN_LOADING_MS = 250;
@@ -565,15 +564,6 @@ export default function Operador() {
 
         {/* Acciones rápidas — altura mínima para no mover el layout */}
         <div className="mt-4 flex min-h-[40px] flex-wrap gap-2">
-          <button
-            className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white shadow-sm"
-            style={{
-              backgroundImage: `linear-gradient(90deg, ${CEL}, ${CEL_DARK})`,
-            }}
-          >
-            <UserPlus className="h-4 w-4" />
-            Alta de cliente (próx.)
-          </button>
           <button className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm dark:border-slate-700">
             <Wrench className="h-4 w-4" />
             Programar visita (próx.)

@@ -34,7 +34,7 @@ const MENU: Record<
     label: "Clientes",
     icon: Users,
     items: [
-      { label: "Nuevo cliente", to: "#" }, // placeholder
+      { label: "Nuevo cliente", to: "/clientes/nuevo" }, // placeholder
       { label: "Lista de clientes", to: "/clientes" }, // 👈 ruta compartida gerente/operador
     ],
   },
