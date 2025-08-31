@@ -1,0 +1,84 @@
+Guía rápida: conectarme a mi API en local (PC y celular)
+=========================================================
+
+Proyecto: UP-Core (Backend FastAPI)
+Sistema: Windows (con Conda opcional)
+
+1) Requisitos mínimos
+---------------------
+- Python instalado (recomendado 3.11/3.12)
+- (Opcional) Conda para crear un entorno
+- PostgreSQL corriendo en localhost:5432 (si tu API lo usa)
+- Archivo .env en /backend con al menos:
+  DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/isp
+  JWT_SECRET=alguna_clave_segura
+  TZ=America/Argentina/Buenos_Aires
+
+2) Levantar el backend
+----------------------
+Abrí una terminal en la carpeta del backend:
+
+    cd UP-Core\backend
+    conda activate api_core   (opcional, sólo si usás conda)
+    uvicorn app:api_upcore --host 0.0.0.0 --port 8000 --reload
+
+Si ves “Uvicorn running on http://0.0.0.0:8000”, quedó escuchando correctamente.
+
+3) Probar desde la PC (mismo equipo)
+------------------------------------
+- Abrí en el navegador:  http://127.0.0.1:8000/docs
+- Alternativa rápida desde consola:
+  
+      curl -I http://127.0.0.1:8000/docs
+
+4) Conectarme desde el celular (misma Wi‑Fi que la PC)
+------------------------------------------------------
+a. En la PC, obtené tu IP local:
+   
+      ipconfig
+   
+   Buscá “IPv4 Address”, por ejemplo: 192.168.0.23
+
+b. En el celular, abrí en el navegador:
+   
+      http://<IP_DE_TU_PC>:8000/docs
+   
+   (Reemplazá <IP_DE_TU_PC> por la IP real, p. ej. http://192.168.0.23:8000/docs)
+
+IMPORTANTE: Para que funcione en la red local, el servidor debe haberse lanzado con:
+   
+    --host 0.0.0.0
+
+5) Si no conecta desde el celular
+---------------------------------
+- Firewall de Windows: permitir el puerto 8000 de entrada (ejecutar CMD/PowerShell como Administrador):
+
+      netsh advfirewall firewall add rule name="Uvicorn 8000" dir=in action=allow protocol=TCP localport=8000
+
+- Probar otro puerto si 8000 está ocupado:
+
+      uvicorn app:api_upcore --host 0.0.0.0 --port 8080 --reload
+      netsh advfirewall firewall add rule name="Uvicorn 8080" dir=in action=allow protocol=TCP localport=8080
+
+- Verificar que el proceso está escuchando:
+
+      netstat -ano | findstr :8000
+
+6) Problemas comunes (y cómo resolverlos)
+-----------------------------------------
+- Ejecutar en carpeta equivocada: asegurate de estar en /backend.
+- .env incorrecto o base de datos inexistente: creá la DB y usa el nombre correcto en DATABASE_URL.
+- PostgreSQL apagado: iniciá el servicio y probá conexión.
+- Dependencias faltantes (WeasyPrint, email-validator, etc.): instalá las librerías listadas en tu proyecto.
+- Permisos/Firewall: agregar la regla como se indica arriba.
+- Wi‑Fi distinta: el celular y la PC deben estar en la misma red.
+
+7) Comandos de diagnóstico rápido
+---------------------------------
+En una terminal, con el server corriendo:
+
+    curl -I http://127.0.0.1:8000/docs
+    netstat -ano | findstr :8000
+    ipconfig
+
+Si algo falla, copiá y pega la salida de la consola para identificar el punto exacto.
