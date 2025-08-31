@@ -1,9 +1,10 @@
 // frontend/src/components/Protected.tsx
 /**
  * Protected layout con control de roles basado en AuthContext.
- * - Si no hay usuario → /login
- * - Si hay `roles` y el user.role no está incluido → /login
- * - Mantiene tu topbar y rail; sólo cambiamos la parte de auth.
+ * Cambios clave:
+ * - gerente = super-rol (puede acceder aunque la ruta pida otros roles)
+ * - normaliza el rol a minúsculas antes de validar
+ * - mantiene tu UI (topbar + rail) intacta
  */
 import { Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
 import AppHeader from "./AppHeader";
@@ -63,6 +64,14 @@ const MENU: Record<
   },
 };
 
+function isAllowed(userRoleRaw: string | undefined, required?: Role[]) {
+  const userRole = (userRoleRaw ?? "").toLowerCase() as Role | "";
+  if (!userRole) return false;
+  if (userRole === "gerente") return true; // ✅ super-rol
+  if (!required || required.length === 0) return true;
+  return required.includes(userRole);
+}
+
 export default function Protected({ roles }: ProtectedProps) {
   const location = useLocation();
   const { user, loading } = useAuth();
@@ -70,7 +79,8 @@ export default function Protected({ roles }: ProtectedProps) {
   // --- Guard de autenticación/roles ---
   if (loading) return null; // o spinner
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
-  if (roles && (!user.role || !roles.includes(user.role))) {
+
+  if (!isAllowed(user.role as any, roles)) {
     return <Navigate to="/login" replace />;
   }
 
@@ -169,7 +179,7 @@ export default function Protected({ roles }: ProtectedProps) {
         </div>
       )}
 
-      {/* Contenido: deja margen para topbar/rail fijos */}
+      {/* Contenido */}
       <main
         className="relative px-4 pb-10 pt-4 md:px-6 md:pt-6"
         style={{ marginLeft: RAIL_W, marginTop: TOPBAR_H }}
