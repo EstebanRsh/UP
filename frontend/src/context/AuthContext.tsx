@@ -1,16 +1,19 @@
+// frontend/src/context/AuthContext.tsx
 /**
  * AuthContext
- * Estado global de autenticación: { user, loading, login, logout }.
- * Hidrata el usuario inicial llamando /me si hay token.
- * Centraliza logout (remueve token y limpia estado).
+ * - Hidrata el usuario inicial desde /me si hay token
+ * - login(): hace /users/login, guarda token y luego /me
+ * - logout(): limpia token, role y cliente_id
+ * - Sincroniza role/cliente_id en localStorage (para compatibilidad)
  */
 import { createContext, useContext, useEffect, useState } from "react";
 import { login as apiLogin, me as apiMe } from "../lib/api";
 
-type User = {
+export type Role = "gerente" | "operador" | "cliente";
+export type User = {
   user_id?: number;
   username?: string;
-  role?: "gerente" | "operador" | "cliente";
+  role?: Role;
   cliente_id?: number | null;
 };
 type Ctx = {
@@ -27,19 +30,30 @@ type Ctx = {
 const AuthCtx = createContext<Ctx>({} as Ctx);
 export const useAuth = () => useContext(AuthCtx);
 
+const ROLE_KEY = "role";
+const CLIENTE_ID_KEY = "cliente_id";
+const TOKEN_KEY = "token";
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function hydrate() {
     try {
-      if (!localStorage.getItem("token")) return;
+      if (!localStorage.getItem(TOKEN_KEY)) return;
       const u = await apiMe();
       setUser(u);
+      if (u?.role) localStorage.setItem(ROLE_KEY, u.role);
+      else localStorage.removeItem(ROLE_KEY);
+
+      if (u?.cliente_id != null)
+        localStorage.setItem(CLIENTE_ID_KEY, String(u.cliente_id));
+      else localStorage.removeItem(CLIENTE_ID_KEY);
     } finally {
       setLoading(false);
     }
   }
+
   useEffect(() => {
     hydrate();
   }, []);
@@ -49,14 +63,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email?: string;
     password: string;
   }) {
-    await apiLogin(cred); // guarda token en localStorage
-    const u = await apiMe(); // trae role, user_id, etc.
+    await apiLogin(cred); // guarda token
+    const u = await apiMe(); // trae role/cliente_id frescos del backend
     setUser(u);
+
+    if (u?.role) localStorage.setItem(ROLE_KEY, u.role);
+    else localStorage.removeItem(ROLE_KEY);
+
+    if (u?.cliente_id != null)
+      localStorage.setItem(CLIENTE_ID_KEY, String(u.cliente_id));
+    else localStorage.removeItem(CLIENTE_ID_KEY);
+
     return u;
   }
 
   function logout() {
-    localStorage.removeItem("token");
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(ROLE_KEY);
+      localStorage.removeItem(CLIENTE_ID_KEY);
+    } catch {}
     setUser(null);
   }
 

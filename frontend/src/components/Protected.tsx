@@ -1,11 +1,10 @@
-// src/components/Protected.tsx
+// frontend/src/components/Protected.tsx
 /**
- * Protected Layout con control de roles
- * - Acepta props `roles?: ("gerente"|"operador"|"cliente")[]`
- * - Si no hay token o el rol no está en `roles`, redirige a /login
- * - Topbar fija + sidebar fija + contenido con scroll
+ * Protected layout con control de roles basado en AuthContext.
+ * - Si no hay usuario → /login
+ * - Si hay `roles` y el user.role no está incluido → /login
+ * - Mantiene tu topbar y rail; sólo cambiamos la parte de auth.
  */
-
 import { Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
 import AppHeader from "./AppHeader";
 import { useEffect, useRef, useState } from "react";
@@ -16,6 +15,7 @@ import {
   Settings,
   ChevronRight,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 type Role = "gerente" | "operador" | "cliente";
 type ProtectedProps = { roles?: Role[] };
@@ -25,7 +25,6 @@ const TOPBAR_H = 48; // px (h-12)
 const HIDE_DELAY = 350; // ms
 
 type MenuKey = "clientes" | "pagos" | "planes" | "config";
-
 const MENU: Record<
   MenuKey,
   { label: string; icon: any; items: { label: string; to: string }[] }
@@ -34,8 +33,8 @@ const MENU: Record<
     label: "Clientes",
     icon: Users,
     items: [
-      { label: "Nuevo cliente", to: "/clientes/nuevo" }, // placeholder
-      { label: "Lista de clientes", to: "/clientes" }, // 👈 ruta compartida gerente/operador
+      { label: "Nuevo cliente", to: "/clientes/nuevo" },
+      { label: "Lista de clientes", to: "/clientes" },
     ],
   },
   pagos: {
@@ -66,20 +65,12 @@ const MENU: Record<
 
 export default function Protected({ roles }: ProtectedProps) {
   const location = useLocation();
+  const { user, loading } = useAuth();
 
-  // --- Auth & roles ---
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  const roleStr =
-    typeof window !== "undefined" ? localStorage.getItem("role") : null;
-  const currentRole = (roleStr as Role | null) ?? null;
-
-  if (!token) {
-    // no autenticado
-    return <Navigate to="/login" replace state={{ from: location }} />;
-  }
-  if (roles && currentRole && !roles.includes(currentRole)) {
-    // autenticado pero sin permiso
+  // --- Guard de autenticación/roles ---
+  if (loading) return null; // o spinner
+  if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
+  if (roles && (!user.role || !roles.includes(user.role))) {
     return <Navigate to="/login" replace />;
   }
 
@@ -121,7 +112,7 @@ export default function Protected({ roles }: ProtectedProps) {
             const active =
               key === "clientes" &&
               (location.pathname.startsWith("/clientes") ||
-                location.pathname.startsWith("/operador")); // compat
+                location.pathname.startsWith("/operador"));
             return (
               <button
                 key={key}
