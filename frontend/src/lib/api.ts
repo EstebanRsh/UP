@@ -6,7 +6,7 @@
  */
 
 // src/lib/api.ts
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
+export const API = import.meta.env.VITE_API_URL;
 
 type LoginBody = { email?: string; documento?: string; password: string };
 
@@ -17,7 +17,7 @@ export function authHeader(): Record<string, string> {
 }
 
 export async function login(body: LoginBody) {
-  const res = await fetch(`${API_URL}/users/login`, {
+  const res = await fetch(`${API}/users/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -32,7 +32,7 @@ export async function login(body: LoginBody) {
 }
 
 export async function me() {
-  const res = await fetch(`${API_URL}/me`, {
+  const res = await fetch(`${API}/me`, {
     headers: { ...authHeader() },
   });
   const data = await res.json().catch(() => ({}));

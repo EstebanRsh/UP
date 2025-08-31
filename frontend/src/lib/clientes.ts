@@ -7,9 +7,7 @@
  * - Actualizar (PUT /clientes/:id)
  */
 
-const BASE_URL: string =
-  (import.meta as any)?.env?.VITE_API_URL || "http://localhost:8000";
-
+export const API = import.meta.env.VITE_API_URL;
 function authHeaders(): Record<string, string> {
   const token =
     localStorage.getItem("token") || sessionStorage.getItem("token") || "";
@@ -100,7 +98,7 @@ export type ClienteUpdateBody = Partial<{
 export async function createCliente(
   body: ClienteCreateBody
 ): Promise<ClienteDetail> {
-  const res = await fetch(`${BASE_URL}/clientes/`, {
+  const res = await fetch(`${API}/clientes/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -114,7 +112,7 @@ export async function createCliente(
 export async function searchClientesPaged(
   params: ClienteSearchParams
 ): Promise<ClienteSearchResponse> {
-  const res = await fetch(`${BASE_URL}/clientes/search`, {
+  const res = await fetch(`${API}/clientes/search`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -126,7 +124,7 @@ export async function searchClientesPaged(
 }
 
 export async function getCliente(id: number): Promise<ClienteDetail> {
-  const res = await fetch(`${BASE_URL}/clientes/${id}`, {
+  const res = await fetch(`${API}/clientes/${id}`, {
     headers: authHeaders() as HeadersInit,
   });
   return parse<ClienteDetail>(res);
@@ -136,7 +134,7 @@ export async function updateCliente(
   id: number,
   body: ClienteUpdateBody | Record<string, unknown>
 ): Promise<{ message: string }> {
-  const res = await fetch(`${BASE_URL}/clientes/${id}`, {
+  const res = await fetch(`${API}/clientes/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
