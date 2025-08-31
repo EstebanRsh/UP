@@ -1,5 +1,7 @@
 Guía rápida: conectarme a mi API en local (PC y celular)
 =========================================================
+npm run dev -- --host
+uvicorn app:api_upcore --host 0.0.0.0 --port 8000 --reload
 
 Proyecto: UP-Core (Backend FastAPI)
 Sistema: Windows (con Conda opcional)
