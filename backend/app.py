@@ -7,8 +7,6 @@ from configs.db import Base, engine
 import models.modelo
 from routes.usuario import Usuario
 from routes.cliente import Cliente
-from routes.plan import Plan
-from routes.contrato import Contrato
 
 
 api_upcore = FastAPI()
@@ -26,8 +24,6 @@ def on_startup():
 
 api_upcore.include_router(Usuario)
 api_upcore.include_router(Cliente)
-api_upcore.include_router(Plan)
-api_upcore.include_router(Contrato)
 
 
 api_upcore.add_middleware(

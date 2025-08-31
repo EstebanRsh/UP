@@ -9,8 +9,6 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
-    Numeric,
-    Text,
     Enum as SAEnum,
 )
 from sqlalchemy.orm import relationship
@@ -30,13 +28,6 @@ class RoleEnum(str, Enum):
 class EstadoClienteEnum(str, Enum):
     activo = "activo"
     inactivo = "inactivo"
-
-
-class EstadoContratoEnum(str, Enum):
-    borrador = "borrador"
-    activo = "activo"
-    suspendido = "suspendido"
-    baja = "baja"
 
 
 # -----------------------------
@@ -89,57 +80,3 @@ class Cliente(Base):
 
     # Relaciones
     usuario = relationship("Usuario", backref="cliente", uselist=False)
-    contratos = relationship("Contrato", back_populates="cliente")
-
-
-# -----------------------------
-# Plan
-# -----------------------------
-class Plan(Base):
-    __tablename__ = "plan"
-
-    id = Column(Integer, primary_key=True)
-    nombre = Column(String(120), unique=True, index=True, nullable=False)
-    vel_down = Column(Integer, nullable=False)  # Mbps
-    vel_up = Column(Integer, nullable=False)  # Mbps
-    precio_mensual = Column(Numeric(12, 2), nullable=False)  # ARS
-    descripcion = Column(Text, nullable=True)
-    # index para filtros
-    activo = Column(Boolean, nullable=False, default=True, index=True)
-    creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    contratos = relationship("Contrato", back_populates="plan")
-
-
-# -----------------------------
-# Contrato
-# -----------------------------
-class Contrato(Base):
-    __tablename__ = "contrato"
-
-    id = Column(Integer, primary_key=True)
-    cliente_id = Column(
-        Integer,
-        ForeignKey("cliente.id", ondelete="RESTRICT"),
-        index=True,
-        nullable=False,
-    )
-    plan_id = Column(
-        Integer,
-        ForeignKey("plan.id", ondelete="RESTRICT"),
-        index=True,
-        nullable=False,
-    )
-    direccion_instalacion = Column(String(200), nullable=False)
-    fecha_alta = Column(Date, nullable=False)
-    fecha_baja = Column(Date, nullable=True)
-    estado = Column(
-        SAEnum(EstadoContratoEnum, name="estado_contrato_enum"),
-        nullable=False,
-        default=EstadoContratoEnum.borrador,  # default como Enum
-        index=True,  # listar por estado
-    )
-    fecha_suspension = Column(Date, nullable=True)
-
-    cliente = relationship("Cliente", back_populates="contratos")
-    plan = relationship("Plan", back_populates="contratos")
