@@ -1,3 +1,4 @@
+# backend/models/modelo.py
 from datetime import date, datetime
 from enum import Enum
 
@@ -10,14 +11,17 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Enum as SAEnum,
+    Numeric,
+    Text,
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy.types import JSON
 
 from configs.db import Base
 
 
 # -----------------------------
-# Enums
+# Enums (existentes)
 # -----------------------------
 class RoleEnum(str, Enum):
     gerente = "gerente"
@@ -31,7 +35,7 @@ class EstadoClienteEnum(str, Enum):
 
 
 # -----------------------------
-# Usuario (auth)
+# Usuario (auth) - SIN CAMBIOS
 # -----------------------------
 class Usuario(Base):
     __tablename__ = "usuario"
@@ -47,7 +51,7 @@ class Usuario(Base):
 
 
 # -----------------------------
-# Cliente
+# Cliente - SIN CAMBIOS (mantiene usuario_id)
 # -----------------------------
 class Cliente(Base):
     __tablename__ = "cliente"
@@ -80,3 +84,73 @@ class Cliente(Base):
 
     # Relaciones
     usuario = relationship("Usuario", backref="cliente", uselist=False)
+
+    # Relación con Pagos
+    pagos = relationship(
+        "Pago",
+        back_populates="cliente",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+# -----------------------------
+# Pagos (nuevo)
+# -----------------------------
+class MetodoPagoEnum(str, Enum):
+    efectivo = "efectivo"
+    transferencia = "transferencia"
+
+
+class EstadoPagoEnum(str, Enum):
+    pendiente = "pendiente"
+    en_revision = "en_revision"
+    confirmado = "confirmado"
+    anulado = "anulado"
+
+
+class Pago(Base):
+    __tablename__ = "pago"
+
+    id = Column(Integer, primary_key=True)
+
+    # vínculo
+    cliente_id = Column(
+        Integer,
+        ForeignKey("cliente.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    cliente = relationship("Cliente", back_populates="pagos")
+
+    # datos del pago
+    fecha = Column(DateTime, default=datetime.utcnow, nullable=False)
+    monto = Column(Numeric(12, 2), nullable=False)
+    moneda = Column(String(3), nullable=False, default="ARS")
+
+    metodo = Column(
+        SAEnum(MetodoPagoEnum, name="metodo_pago_enum"), nullable=False, index=True
+    )
+    estado = Column(
+        SAEnum(EstadoPagoEnum, name="estado_pago_enum"),
+        nullable=False,
+        default=EstadoPagoEnum.pendiente,
+        index=True,
+    )
+
+    # período (YYYY-MM)
+    periodo_year = Column(Integer, nullable=False)
+    periodo_month = Column(Integer, nullable=False)
+    es_adelantado = Column(Boolean, default=False, nullable=False)
+
+    # textos
+    concepto = Column(String(160), nullable=False)
+    descripcion = Column(Text, nullable=True)
+
+    # archivos / recibo
+    comprobante_path = Column(String(300), nullable=True)
+    recibo_num = Column(String(32), unique=True, index=True, nullable=True)
+    recibo_pdf_path = Column(String(300), nullable=True)
+    recibo_snapshot_json = Column(JSON, nullable=True)
+
+    creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
