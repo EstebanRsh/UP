@@ -1,0 +1,190 @@
+{
+  "info": {
+    "name": "UP-Core — Pagos (LOCALHOST)",
+    "_postman_id": "a1b2c3d4-pagos-localhost",
+    "description": "Colección de pruebas para el módulo Pagos: efectivo, transferencia con comprobante, confirmar (genera PDF), actualizar, anular, detalle, búsqueda y descargas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "token", "value": "" },
+    { "key": "gerenteDocumento", "value": "20000000000" },
+    { "key": "clienteId", "value": "1" },
+    { "key": "pagoId", "value": "" },
+    { "key": "reciboPdfUrl", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth — Login (gerente) /users/login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let j={}; try{j=pm.response.json()}catch(e){}",
+              "if(j && j.token){pm.environment.set('token', j.token);} else {pm.test('Token presente', ()=>pm.expect.fail('Sin token'));}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"documento\": \"{{gerenteDocumento}}\",\n  \"password\": \"secret\"\n}"
+        },
+        "url": "{{baseUrl}}/users/login"
+      }
+    },
+    {
+      "name": "Pagos — Efectivo (confirma + PDF) /pagos/efectivo",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let j={}; try{j=pm.response.json()}catch(e){}",
+              "if(j && j.id){ pm.environment.set('pagoId', j.id); }",
+              "if(j && j.recibo_pdf_url){ pm.environment.set('reciboPdfUrl', j.recibo_pdf_url); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cliente_id\": {{clienteId}},\n  \"monto\": 15000,\n  \"moneda\": \"ARS\",\n  \"periodo_year\": 2025,\n  \"periodo_month\": 9,\n  \"es_adelantado\": false,\n  \"concepto\": \"Servicio de Internet\",\n  \"descripcion\": \"Pago en caja\"\n}"
+        },
+        "url": "{{baseUrl}}/pagos/efectivo"
+      }
+    },
+    {
+      "name": "Pagos — Transferencia (en revisión) /pagos/transferencia",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let j={}; try{j=pm.response.json()}catch(e){}",
+              "if(j && j.id){ pm.environment.set('pagoId', j.id); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "cliente_id", "value": "{{clienteId}}", "type": "text" },
+            { "key": "monto", "value": "15000", "type": "text" },
+            { "key": "moneda", "value": "ARS", "type": "text" },
+            { "key": "periodo_year", "value": "2025", "type": "text" },
+            { "key": "periodo_month", "value": "9", "type": "text" },
+            { "key": "es_adelantado", "value": "false", "type": "text" },
+            { "key": "concepto", "value": "Servicio de Internet", "type": "text" },
+            { "key": "descripcion", "value": "Transferencia BBVA 123", "type": "text" },
+            { "key": "comprobante", "type": "file", "src": "" }
+          ]
+        },
+        "url": "{{baseUrl}}/pagos/transferencia"
+      }
+    },
+    {
+      "name": "Pagos — Confirmar /pagos/{{pagoId}}/confirmar",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let j={}; try{j=pm.response.json()}catch(e){}",
+              "if(j && j.recibo_pdf_url){ pm.environment.set('reciboPdfUrl', j.recibo_pdf_url); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": "{{baseUrl}}/pagos/{{pagoId}}/confirmar"
+      }
+    },
+    {
+      "name": "Pagos — Detalle /pagos/{{pagoId}}",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": "{{baseUrl}}/pagos/{{pagoId}}"
+      }
+    },
+    {
+      "name": "Pagos — Actualizar /pagos/{{pagoId}}",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"descripcion\": \"Nota interna actualizada\"\n}"
+        },
+        "url": "{{baseUrl}}/pagos/{{pagoId}}"
+      }
+    },
+    {
+      "name": "Pagos — Anular /pagos/{{pagoId}}",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"motivo\": \"Error de imputación\"\n}" },
+        "url": "{{baseUrl}}/pagos/{{pagoId}}"
+      }
+    },
+    {
+      "name": "Pagos — Buscar (POST /pagos/search)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"page\": 1,\n  \"limit\": 20,\n  \"cliente_id\": null,\n  \"metodo\": null,\n  \"estado\": null,\n  \"fecha_desde\": null,\n  \"fecha_hasta\": null,\n  \"monto_min\": null,\n  \"monto_max\": null,\n  \"ordenar_por\": \"fecha\",\n  \"orden\": \"desc\"\n}"
+        },
+        "url": "{{baseUrl}}/pagos/search"
+      }
+    },
+    {
+      "name": "Pagos — Descargar recibo (usar Send and Download)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": "{{baseUrl}}/pagos/{{pagoId}}/recibo.pdf"
+      }
+    },
+    {
+      "name": "Pagos — Descargar comprobante",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": "{{baseUrl}}/pagos/{{pagoId}}/comprobante"
+      }
+    }
+  ]
+}

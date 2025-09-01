@@ -7,6 +7,8 @@ from configs.db import Base, engine
 import models.modelo
 from routes.usuario import Usuario
 from routes.cliente import Cliente
+from routes.pago import Pago
+from routes.config import Config as ConfigRouter
 
 
 api_upcore = FastAPI()
@@ -24,7 +26,8 @@ def on_startup():
 
 api_upcore.include_router(Usuario)
 api_upcore.include_router(Cliente)
-
+api_upcore.include_router(Pago)
+api_upcore.include_router(ConfigRouter)
 
 api_upcore.add_middleware(
     CORSMiddleware,

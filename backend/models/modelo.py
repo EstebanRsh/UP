@@ -154,3 +154,19 @@ class Pago(Base):
     recibo_snapshot_json = Column(JSON, nullable=True)
 
     creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# Configuración de empresa (1 fila)
+class ConfigEmpresa(Base):
+    __tablename__ = "config_empresa"
+
+    id = Column(Integer, primary_key=True, default=1)
+    nombre = Column(String(120), nullable=False, default="UP-Link")
+    cuit = Column(String(32), nullable=True)
+    direccion = Column(String(160), nullable=True)
+    ciudad = Column(String(80), nullable=True)
+    contacto = Column(String(160), nullable=True)
+    logo_path = Column(String(300), nullable=True)
+    actualizado_en = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
